@@ -12,3 +12,11 @@ Goals:
 - Understand how modern SaaS products collect and analyze user behaviour
 - Learn event instrumentation
 - Learn analytics dashboards and funnels
+
+Progress
+
+[ ] Learn SQL
+[ ] Install PostHog
+[ ] Track page views
+[ ] Track button clicks
+[ ] Build funnel
