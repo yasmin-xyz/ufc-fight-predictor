@@ -146,6 +146,48 @@ export default function Home() {
             </div>
           </div>
 
+          {/* AI Fight Breakdown */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-label">AI Fight Breakdown</span>
+              <span className="ai-models-label">Claude · GPT-4 · Gemini</span>
+            </div>
+            <div className="card-body">
+              <div className="ai-section">
+                <div className="ai-block">
+                  <div className="ai-block-label">Key Advantages — Makhachev</div>
+                  <div className="ai-block-text">Elite grappling with <strong>82% takedown accuracy</strong> gives Makhachev control of where this fight happens. His submission rate from top position is unmatched at lightweight, and Poirier has historically been vulnerable once taken down.</div>
+                </div>
+                <div className="ai-block">
+                  <div className="ai-block-label">Biggest Risk</div>
+                  <div className="ai-block-text">Poirier&apos;s <strong>left hand on the counter</strong> is the most dangerous weapon in this fight. If Makhachev shoots without setting up combinations first, he risks walking into fight-ending power.</div>
+                </div>
+                <div className="ai-block">
+                  <div className="ai-block-label">Likely Fight Script</div>
+                  <div className="ai-block-text">Makhachev pressures early using leg kicks to set up takedowns. Poirier looks to land the left hand on the way in. If Dustin survives the first two rounds standing, his cardio gives him a real path. Most likely outcome: <strong>Makhachev by submission, round 3</strong>.</div>
+                </div>
+                <div className="ai-block">
+                  <div className="ai-block-label">Prediction</div>
+                  <div className="pred-row">
+                    <div className="pred-name">Islam Makhachev</div>
+                    <div className="pred-conf">72% confidence</div>
+                  </div>
+                  <div className="conf-track">
+                    <div className="conf-fill" style={{ width: "72%" }}></div>
+                  </div>
+                </div>
+                <div className="ai-block ai-block-wrong">
+                  <div className="ai-block-label ai-block-label-wrong">Why the AI could be wrong</div>
+                  <div className="wrong-list">
+                    <div className="wrong-item"><span className="wrong-dot">–</span><span>Poirier&apos;s takedown defense has improved significantly over his last 4 fights, now sitting at 71%</span></div>
+                    <div className="wrong-item"><span className="wrong-dot">–</span><span>Makhachev has never faced a pure striker with Dustin&apos;s combination of power and volume at 155</span></div>
+                    <div className="wrong-item"><span className="wrong-dot">–</span><span>Small sample size against elite southpaw opponents</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         {/* RIGHT — Odds */}
