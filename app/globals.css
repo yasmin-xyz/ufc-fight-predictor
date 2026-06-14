@@ -1,4 +1,3 @@
-@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -102,3 +101,19 @@ body {
 .odds-pair { display: flex; gap: 22px; }
 .odd-fav { font-size: 13px; font-weight: 600; color: #E8E8EC; }
 .odd-dog { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.28); }
+
+/* STATS */
+.stat-grid { display: flex; flex-direction: column; gap: 18px; }
+.stat-row { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 12px; }
+.stat-val { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat-val-a { color: #8B8FFF; text-align: left; }
+.stat-val-b { color: rgba(255,255,255,0.38); text-align: right; }
+.stat-center { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.stat-name { font-size: 10px; color: rgba(255,255,255,0.28); text-align: center; }
+.bar-track { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; display: flex; align-items: center; width: 100%; }
+.bar-left { display: flex; justify-content: flex-end; width: 50%; height: 4px; overflow: hidden; }
+.bar-right { display: flex; justify-content: flex-start; width: 50%; height: 4px; overflow: hidden; }
+.bar-fill-a { height: 4px; border-radius: 2px 0 0 2px; background: #6C6FE8; flex-shrink: 0; }
+.bar-fill-a.dis { background: rgba(108,111,232,0.35); }
+.bar-fill-b { height: 4px; border-radius: 0 2px 2px 0; background: rgba(108,111,232,0.35); flex-shrink: 0; }
+.bar-fill-b.adv { background: #6C6FE8; }
