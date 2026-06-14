@@ -1,6 +1,6 @@
 # UFC Fight Predictor — Pick'em Labs
 
-An AI-powered UFC fight analysis and betting insights tool. Built to learn React, PostHog instrumentation, and multi-model AI integration by shipping something real.
+An AI-powered UFC fight analysis and betting insights tool. Built to learn React, PostHog instrumentation, and multi-model AI integration.
 
 ---
 
