@@ -135,3 +135,44 @@ body {
 .wrong-list { display: flex; flex-direction: column; gap: 7px; }
 .wrong-item { font-size: 12px; color: rgba(255,255,255,0.42); display: flex; gap: 9px; line-height: 1.55; }
 .wrong-dot { color: rgba(220,80,80,0.5); flex-shrink: 0; }
+
+/* VALUE ANALYSIS */
+.value-card { display: flex; flex-direction: column; gap: 8px; }
+.value-row { display: flex; justify-content: space-between; align-items: center; }
+.value-label { font-size: 12px; color: rgba(255,255,255,0.35); }
+.value-num { font-size: 13px; font-weight: 600; color: #E8E8EC; }
+.edge-divider { border: none; border-top: 0.5px solid rgba(108,111,232,0.12); margin: 4px 0; }
+.edge-neg { font-size: 13px; font-weight: 600; color: rgba(220,80,80,0.65); }
+.edge-pos { font-size: 13px; font-weight: 600; color: #5DC98A; }
+
+/* CONSENSUS */
+.model-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 7px; margin-bottom: 7px; transition: background 0.15s, border-color 0.15s; }
+.model-row:hover { background: rgba(108,111,232,0.05); border-color: rgba(108,111,232,0.18); }
+.model-name { font-size: 12px; color: rgba(255,255,255,0.35); display: flex; align-items: center; gap: 8px; }
+.model-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.model-right { text-align: right; }
+.model-pick { font-size: 13px; font-weight: 500; color: #E8E8EC; }
+.model-conf { font-size: 10px; color: rgba(255,255,255,0.24); margin-top: 2px; }
+.consensus-result { margin-top: 4px; padding: 13px 15px; background: rgba(108,111,232,0.07); border: 0.5px solid rgba(108,111,232,0.16); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; }
+.cons-eyebrow { font-size: 10px; color: rgba(255,255,255,0.24); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 4px; }
+.cons-pick { font-size: 16px; font-weight: 600; color: #E8E8EC; }
+.cons-pct { font-size: 26px; font-weight: 700; color: #6C6FE8; letter-spacing: -0.02em; }
+
+/* FIGHT HISTORY */
+.fighter-toggle { display: flex; background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 3px; margin-bottom: 14px; }
+.toggle-btn { flex: 1; font-size: 11px; font-weight: 500; padding: 7px; text-align: center; border-radius: 6px; cursor: pointer; color: rgba(255,255,255,0.32); transition: all 0.2s; }
+.toggle-active { background: rgba(108,111,232,0.18); color: #8B8FFF; }
+.history-fight { background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 13px; margin-bottom: 9px; transition: border-color 0.2s, background 0.2s; }
+.history-fight:last-child { margin-bottom: 0; }
+.history-fight:hover { border-color: rgba(108,111,232,0.2); background: rgba(108,111,232,0.03); }
+.history-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+.history-opponent { font-size: 13px; font-weight: 500; color: #E8E8EC; }
+.history-result { font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 5px; }
+.result-w { color: #5DC98A; background: rgba(93,201,138,0.1); border: 0.5px solid rgba(93,201,138,0.2); }
+.result-l { color: rgba(220,80,80,0.75); background: rgba(220,80,80,0.08); border: 0.5px solid rgba(220,80,80,0.15); }
+.history-meta { font-size: 11px; color: rgba(255,255,255,0.24); margin-bottom: 10px; }
+.history-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
+.hstat { background: rgba(255,255,255,0.03); border-radius: 6px; padding: 7px 9px; transition: background 0.15s; }
+.hstat:hover { background: rgba(108,111,232,0.08); }
+.hstat-label { font-size: 9px; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
+.hstat-val { font-size: 13px; font-weight: 600; color: #E8E8EC; }

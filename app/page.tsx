@@ -218,8 +218,96 @@ export default function Home() {
                   </div>
                 </div>
               ))}
+        </div>
+          </div>
+
+          {/* Value Edge */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-label">Value Analysis</span>
+            </div>
+            <div className="card-body">
+              <div className="value-card">
+                <div className="value-row">
+                  <span className="value-label">AI Win Probability</span>
+                  <span className="value-num">72%</span>
+                </div>
+                <div className="value-row">
+                  <span className="value-label">Market Implied</span>
+                  <span className="value-num">77%</span>
+                </div>
+                <hr className="edge-divider" />
+                <div className="value-row">
+                  <span className="value-label">Value Edge</span>
+                  <span className="edge-neg">–5% · no edge</span>
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* Multi-Model Consensus */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-label">Multi-Model Consensus</span>
+            </div>
+            <div className="card-body">
+              {[
+                { model: "Claude", color: "#CF9B60", pick: "Makhachev", conf: "72%" },
+                { model: "GPT-4", color: "#5DC98A", pick: "Makhachev", conf: "68%" },
+                { model: "Gemini", color: "#5B9EE8", pick: "Poirier", conf: "54%" },
+              ].map((m, i) => (
+                <div key={i} className="model-row">
+                  <div className="model-name">
+                    <div className="model-dot" style={{ background: m.color }}></div>
+                    {m.model}
+                  </div>
+                  <div className="model-right">
+                    <div className="model-pick">{m.pick}</div>
+                    <div className="model-conf">{m.conf} confidence</div>
+                  </div>
+                </div>
+              ))}
+              <div className="consensus-result">
+                <div>
+                  <div className="cons-eyebrow">Consensus pick</div>
+                  <div className="cons-pick">Makhachev</div>
+                </div>
+                <div className="cons-pct">67%</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Fight History */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-label">Fight History</span>
+            </div>
+            <div className="card-body">
+              <div className="fighter-toggle">
+                <div className="toggle-btn toggle-active">Makhachev</div>
+                <div className="toggle-btn">Poirier</div>
+              </div>
+              {[
+                { opp: "vs. Charles Oliveira", result: "W · Sub R2", resultClass: "result-w", date: "Oct 2022 · UFC 280 · Abu Dhabi", acc: "61%", td: "3", def: "100%" },
+                { opp: "vs. Alexander Volkanovski", result: "W · Dec", resultClass: "result-w", date: "Feb 2023 · UFC 284 · Perth", acc: "54%", td: "5", def: "80%" },
+                { opp: "vs. Dustin Poirier", result: "W · Sub R1", resultClass: "result-w", date: "Jun 2024 · UFC 302 · Newark", acc: "58%", td: "4", def: "100%" },
+              ].map((h, i) => (
+                <div key={i} className="history-fight">
+                  <div className="history-header">
+                    <span className="history-opponent">{h.opp}</span>
+                    <span className={`history-result ${h.resultClass}`}>{h.result}</span>
+                  </div>
+                  <div className="history-meta">{h.date}</div>
+                  <div className="history-stats">
+                    <div className="hstat"><div className="hstat-label">Str. Acc.</div><div className="hstat-val">{h.acc}</div></div>
+                    <div className="hstat"><div className="hstat-label">TDs Landed</div><div className="hstat-val">{h.td}</div></div>
+                    <div className="hstat"><div className="hstat-label">TD Def.</div><div className="hstat-val">{h.def}</div></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
 
       </div>
