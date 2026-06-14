@@ -46,3 +46,59 @@ body {
 .page-header { padding: 28px 40px 0; }
 .page-title { font-size: 26px; font-weight: 600; color: #E8E8EC; letter-spacing: -0.025em; }
 .page-sub { font-size: 13px; color: rgba(255,255,255,0.3); margin-top: 5px; }
+
+/* TABS */
+.tabs { display: flex; border-bottom: 0.5px solid rgba(255,255,255,0.07); padding: 0 40px; margin-top: 20px; }
+.tab { font-size: 13px; padding: 10px 0; margin-right: 32px; color: rgba(255,255,255,0.3); border-bottom: 1.5px solid transparent; cursor: pointer; transition: color 0.15s; }
+.tab.active { color: #E8E8EC; border-bottom-color: #6C6FE8; }
+
+/* LAYOUT */
+.layout { display: grid; grid-template-columns: 240px 1fr 310px; gap: 18px; padding: 22px 40px 40px; }
+
+/* CARD */
+.card { background: #16161A; border: 0.5px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; transition: border-color 0.25s ease, box-shadow 0.25s ease; }
+.card:hover { border-color: rgba(108,111,232,0.35); box-shadow: 0 0 24px rgba(108,111,232,0.08), 0 4px 24px rgba(0,0,0,0.3); }
+.card-header { padding: 13px 18px; border-bottom: 0.5px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; }
+.card-label { font-size: 10px; color: rgba(255,255,255,0.28); text-transform: uppercase; letter-spacing: 0.1em; }
+.card-meta { font-size: 10px; color: rgba(255,255,255,0.2); }
+.card-body { padding: 18px; }
+
+/* FIGHT LIST */
+.fight-list { display: flex; flex-direction: column; }
+.fight-item { padding: 12px 18px; border-bottom: 0.5px solid rgba(255,255,255,0.05); cursor: pointer; transition: background 0.15s, border-left-color 0.15s; border-left: 2px solid transparent; }
+.fight-item:last-child { border-bottom: none; }
+.fight-item:hover { background: rgba(108,111,232,0.04); border-left-color: rgba(108,111,232,0.4); }
+.fight-item.active { background: rgba(108,111,232,0.07); border-left-color: #6C6FE8; padding-left: 16px; }
+.fight-names { font-size: 12px; font-weight: 500; color: #E8E8EC; }
+.fight-meta { display: flex; align-items: center; gap: 7px; margin-top: 4px; }
+.fight-wc { font-size: 10px; color: rgba(255,255,255,0.28); }
+.fight-tag { font-size: 9px; color: #8B8FFF; background: rgba(108,111,232,0.1); border: 0.5px solid rgba(108,111,232,0.2); padding: 2px 7px; border-radius: 8px; }
+.fight-pick-row { display: flex; justify-content: space-between; margin-top: 6px; }
+.fight-pick-name { font-size: 11px; color: #8B8FFF; }
+.fight-pick-pct { font-size: 11px; color: rgba(255,255,255,0.22); }
+
+/* TALE OF TAPE */
+.tot { display: grid; grid-template-columns: 1fr 90px 1fr; align-items: start; }
+.fighter-a { text-align: left; }
+.fighter-b { text-align: right; }
+.fighter-name { font-size: 20px; font-weight: 700; color: #E8E8EC; letter-spacing: -0.025em; }
+.fighter-record { font-size: 12px; color: rgba(255,255,255,0.3); margin-top: 5px; }
+.fighter-meta { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; }
+.fighter-meta span { font-size: 12px; color: rgba(255,255,255,0.38); }
+.vs-col { display: flex; flex-direction: column; align-items: center; padding-top: 8px; }
+.vs-text { font-size: 11px; color: rgba(255,255,255,0.18); text-transform: uppercase; letter-spacing: 0.12em; }
+.weight-pill { font-size: 10px; color: #8B8FFF; background: rgba(108,111,232,0.1); border: 0.5px solid rgba(108,111,232,0.2); padding: 4px 11px; border-radius: 20px; white-space: nowrap; }
+
+/* CENTER & RIGHT */
+.center { display: flex; flex-direction: column; gap: 16px; }
+.right-col { display: flex; flex-direction: column; gap: 16px; }
+
+/* ODDS */
+.odds-col-labels { display: flex; justify-content: space-between; padding: 0 2px; margin-bottom: 8px; }
+.odds-col-label { font-size: 10px; color: rgba(255,255,255,0.2); }
+.odds-book { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 7px; margin-bottom: 7px; transition: background 0.15s, border-color 0.15s; }
+.odds-book:hover { background: rgba(108,111,232,0.05); border-color: rgba(108,111,232,0.2); }
+.book-name { font-size: 12px; color: rgba(255,255,255,0.35); }
+.odds-pair { display: flex; gap: 22px; }
+.odd-fav { font-size: 13px; font-weight: 600; color: #E8E8EC; }
+.odd-dog { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.28); }
