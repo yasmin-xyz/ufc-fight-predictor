@@ -176,3 +176,6 @@ body {
 .hstat:hover { background: rgba(108,111,232,0.08); }
 .hstat-label { font-size: 9px; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
 .hstat-val { font-size: 13px; font-weight: 600; color: #E8E8EC; }
+
+/* AI LOADING */
+.ai-loading { font-size: 13px; color: rgba(255,255,255,0.28); padding: 20px 0; text-align: center; font-style: italic; }
