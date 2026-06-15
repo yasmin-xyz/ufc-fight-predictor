@@ -1,6 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
+const mainCardFights = [
+  "Manel Kape vs. Kyoji Horiguchi",
+  "Ion Cutelaba vs. Navajo Stirling",
+];
+
+const prelimFights = [
+  "Andre Fili vs. Vinicius Oliveira",
+  "Hyder Amil vs. Christian Rodriguez",
+  "Andre Lima vs. Kevin Borjas",
+];
+
+function fightName(fight: any) {
+  return `${fight.home_team} vs. ${fight.away_team}`;
+}
+
+function impliedProbability(americanOdds: number) {
+  if (!americanOdds) return null;
+  if (americanOdds < 0) {
+    return Math.round((-americanOdds / (-americanOdds + 100)) * 100);
+  }
+  return Math.round((100 / (americanOdds + 100)) * 100);
+}
+
 export default function Home() {
   const [odds, setOdds] = useState<any[]>([]);
   const [loadingOdds, setLoadingOdds] = useState(true);
@@ -11,67 +35,30 @@ export default function Home() {
       try {
         const res = await fetch("/api/odds");
         const data = await res.json();
-
-        console.log("Odds data:", data);
         setOdds(data);
-
-const firstMainCardFight = data.find((fight: any) =>
-  mainCardFights.includes(`${fight.home_team} vs. ${fight.away_team}`)
-);
-
-setSelectedFight(firstMainCardFight || data[0]);
+        const firstMainCardFight = data.find((fight: any) =>
+          mainCardFights.includes(fightName(fight))
+        );
+        setSelectedFight(firstMainCardFight || data[0]);
       } catch (error) {
         console.error("Failed to load odds:", error);
       } finally {
         setLoadingOdds(false);
       }
     }
-
     fetchOdds();
   }, []);
-  
-  const mainCardFights = [
-    "Manel Kape vs. Kyoji Horiguchi",
-    "Ion Cutelaba vs. Navajo Stirling",
-  ];
-  
-  const prelimFights = [
-    "Andre Fili vs. Vinicius Oliveira",
-    "Hyder Amil vs. Christian Rodriguez",
-    "Andre Lima vs. Kevin Borjas",
-  ];
-  
-  function fightName(fight: any) {
-    return `${fight.home_team} vs. ${fight.away_team}`;
-  }
-  
+
   const mainCardOdds = odds.filter((fight) =>
     mainCardFights.includes(fightName(fight))
   );
-  
-  const prelimOdds = odds.filter((fight) =>
-    prelimFights.includes(fightName(fight))
-  );
-  
+
   const firstBookmaker = selectedFight?.bookmakers?.[0];
-const outcomes = firstBookmaker?.markets?.[0]?.outcomes || [];
-
-const homeOdds = outcomes.find((o: any) => o.name === selectedFight?.home_team);
-const awayOdds = outcomes.find((o: any) => o.name === selectedFight?.away_team);
-
-function impliedProbability(americanOdds: number) {
-  if (!americanOdds) return null;
-
-  if (americanOdds < 0) {
-    return Math.round((-americanOdds / (-americanOdds + 100)) * 100);
-  }
-
-  return Math.round((100 / (americanOdds + 100)) * 100);
-}
-
-const homeImplied = impliedProbability(homeOdds?.price);
-const awayImplied = impliedProbability(awayOdds?.price);
-
+  const outcomes = firstBookmaker?.markets?.[0]?.outcomes || [];
+  const homeOdds = outcomes.find((o: any) => o.name === selectedFight?.home_team);
+  const awayOdds = outcomes.find((o: any) => o.name === selectedFight?.away_team);
+  const homeImplied = impliedProbability(homeOdds?.price);
+  const awayImplied = impliedProbability(awayOdds?.price);
   return (
     <main>
       <nav className="nav">
@@ -98,13 +85,6 @@ const awayImplied = impliedProbability(awayOdds?.price);
         <div className="page-title">Fight Analysis</div>
         <div className="page-sub">AI-powered breakdowns · UFC 316 main card</div>
       </div>
-      <div style={{ padding: "12px 38px", color: "white" }}>
-  {loadingOdds ? (
-    <div>Loading live odds...</div>
-  ) : (
-    <div>Live fights loaded: {odds.length}</div>
-  )}
-</div>
       <div className="tabs">
         <div className="tab active">MAIN CARD</div>
         <div className="tab">PRELIMS</div>
@@ -313,17 +293,21 @@ const awayImplied = impliedProbability(awayOdds?.price);
             <div className="card-body">
               <div className="value-card">
                 <div className="value-row">
-                  <span className="value-label">AI Win Probability</span>
-                  <span className="value-num">72%</span>
+                  <span className="value-label">{selectedFight?.home_team?.split(" ").pop() || "Fighter A"} — Market Implied</span>
+                  <span className="value-num">{homeImplied !== null ? `${homeImplied}%` : "—"}</span>
                 </div>
                 <div className="value-row">
-                  <span className="value-label">Market Implied</span>
-                  <span className="value-num">77%</span>
+                  <span className="value-label">{selectedFight?.away_team?.split(" ").pop() || "Fighter B"} — Market Implied</span>
+                  <span className="value-num">{awayImplied !== null ? `${awayImplied}%` : "—"}</span>
                 </div>
                 <hr className="edge-divider" />
                 <div className="value-row">
+                  <span className="value-label">AI Win Probability</span>
+                  <span className="value-num">Pending AI</span>
+                </div>
+                <div className="value-row">
                   <span className="value-label">Value Edge</span>
-                  <span className="edge-neg">–5% · no edge</span>
+                  <span className="value-num">Pending AI</span>
                 </div>
               </div>
             </div>
