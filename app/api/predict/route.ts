@@ -46,8 +46,25 @@ Return only valid JSON, no other text.`;
     }
 
     const cleaned = content.text.replace(/```json\n?|\n?```/g, "").trim();
-const analysis = JSON.parse(cleaned);
-    return NextResponse.json(analysis);
+    const analysis = JSON.parse(cleaned);
+    const predictedWinner =
+    analysis.predictedWinner ||
+    analysis.winner ||
+    analysis.predicted_winner ||
+    analysis.pick ||
+    (impliedA >= impliedB ? fighterA : fighterB);
+    return NextResponse.json({
+      claude: {
+        ...analysis,
+        predictedWinner,
+      },
+      gpt: null,
+      gemini: null,
+      consensus: {
+        winner: predictedWinner,
+        confidence: analysis.confidence || 50,
+      },
+    });
   } catch (error) {
     console.error("Prediction API error:", error);
     return NextResponse.json(

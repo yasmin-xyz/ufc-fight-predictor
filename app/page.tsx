@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { mergeFightData } from "./lib/mergeFightData";
 
 function fightName(fight: any) {
   return `${fight.home_team} vs. ${fight.away_team}`;
@@ -44,6 +45,8 @@ export default function Home() {
   const [odds, setOdds] = useState<any[]>([]);
   const [loadingOdds, setLoadingOdds] = useState(true);
   const [selectedFight, setSelectedFight] = useState<any>(null);
+  const [ufcEvent, setUfcEvent] = useState<any>(null);
+const [mergedFights, setMergedFights] = useState<any[]>([]);
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
 
@@ -52,24 +55,20 @@ export default function Home() {
     setLoadingPrediction(true);
     setPrediction(null);
 
-    const bookmaker = fight.bookmakers?.[0];
+    const bookmaker = fight.odds?.bookmakers?.[0];
     const outcomes = bookmaker?.markets?.[0]?.outcomes || [];
-    const homeOdds = outcomes.find((o: any) => o.name === fight.home_team);
-    const awayOdds = outcomes.find((o: any) => o.name === fight.away_team);
-    const homeImpl = impliedProbability(homeOdds?.price);
-    const awayImpl = impliedProbability(awayOdds?.price);
+    const homeOdds = outcomes.find((o: any) => o.name === fight.fighterA);
+    const awayOdds = outcomes.find((o: any) => o.name === fight.fighterB);
 
     try {
       const res = await fetch("/api/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fighterA: fight.home_team,
-          fighterB: fight.away_team,
-          oddsA: homeOdds?.price,
-          oddsB: awayOdds?.price,
-          impliedA: homeImpl,
-          impliedB: awayImpl,
+          fighterA: fight.fighterA,
+          fighterB: fight.fighterB,
+          oddsA: homeOdds?.price || 0,
+          oddsB: awayOdds?.price || 0,    
         }),
       });
       const data = await res.json();
@@ -84,11 +83,19 @@ export default function Home() {
   useEffect(() => {
     async function fetchOdds() {
       try {
-        const res = await fetch("/api/odds");
-        const data = await res.json();
-        setOdds(data);
-        const nextEvent = getNextEventFights(data);
-        const defaultFight = nextEvent[0] || data[0];
+        const oddsRes = await fetch("/api/odds");
+        const oddsData = await oddsRes.json();
+        
+        const eventRes = await fetch("/api/ufc-event");
+        const eventData = await eventRes.json();
+        
+        const merged = mergeFightData(eventData.fights, oddsData);
+        
+        setOdds(oddsData);
+        setUfcEvent(eventData);
+        setMergedFights(merged);
+        
+        const defaultFight = merged[0];
         setSelectedFight(defaultFight);
         fetchPrediction(defaultFight);
       } catch (error) {
@@ -99,42 +106,53 @@ export default function Home() {
     }
     fetchOdds();
   }, []);
+  const ufc329Fights = [
+    "Conor McGregor vs. Max Holloway",
+  ];
+  
+  const ufc329Odds = odds.filter((fight) =>
+    ufc329Fights.includes(`${fight.home_team} vs. ${fight.away_team}`) ||
+    ufc329Fights.includes(`${fight.away_team} vs. ${fight.home_team}`)
+  );
 
-  const nextEventFights = getNextEventFights(odds);
-  const mainCardOdds = nextEventFights;
+  const mainCardOdds = mergedFights;
 
-  const firstBookmaker = selectedFight?.bookmakers?.[0];
+  const firstBookmaker = selectedFight?.odds?.bookmakers?.[0];  
   const outcomes = firstBookmaker?.markets?.[0]?.outcomes || [];
-  const homeOdds = outcomes.find((o: any) => o.name === selectedFight?.home_team);
-  const awayOdds = outcomes.find((o: any) => o.name === selectedFight?.away_team);
+  const homeOdds = outcomes.find((o: any) => o.name === selectedFight?.fighterA);
+  const awayOdds = outcomes.find((o: any) => o.name === selectedFight?.fighterB);
   const homeImplied = impliedProbability(homeOdds?.price);
   const awayImplied = impliedProbability(awayOdds?.price);
 
   return (
     <main>
-      <nav className="nav">
-        <div className="nav-logo">
-          <span className="nav-logo-pickem">PICK'EM</span>
-          <span className="nav-logo-labs">LABS</span>
-        </div>
-        <div className="nav-links">
-          <span className="nav-link">EVENTS</span>
-          <span className="nav-link">FIGHTERS</span>
-          <span className="nav-link">MY PICKS</span>
-          <span className="nav-badge">UFC 316 · Jun 28</span>
-        </div>
-      </nav>
+     <nav className="nav">
+  <div className="nav-logo">
+    <span className="nav-logo-pickem">PICK'EM</span>
+    <span className="nav-logo-labs">LABS</span>
+  </div>
+  <div className="nav-links">
+    <span className="nav-link">EVENTS</span>
+    <span className="nav-link">FIGHTERS</span>
+    <span className="nav-link">MY PICKS</span>
+    <span className="nav-badge">
+      {ufcEvent?.shortName || "Loading event..."}
+    </span>
+  </div>
+</nav>
 
-      <div className="event-bar">
-        <div className="event-dot"></div>
-        <span className="event-eyebrow">Next Event</span>
-        <span className="event-name">UFC 316 — Makhachev vs. Poirier</span>
-        <span className="event-date">Jun 28, 2026 · T-Mobile Arena, Las Vegas</span>
-      </div>
+<div className="event-bar">
+  <div className="event-dot"></div>
+  <span className="event-eyebrow">Next Event</span>
+  <span className="event-name">{ufcEvent?.eventName || "Loading event..."}</span>
+  <span className="event-date">
+    {ufcEvent?.date ? new Date(ufcEvent.date).toLocaleDateString() : "Loading date..."} · {ufcEvent?.venue || "Loading venue..."}
+  </span>
+</div>
 
       <div className="page-header">
         <div className="page-title">Fight Analysis</div>
-        <div className="page-sub">AI-powered breakdowns · UFC 316 main card</div>
+        <div className="page-sub">AI-powered breakdowns · {ufcEvent?.eventName || "Loading event..."} main card</div>
       </div>
 
       <div className="tabs">
@@ -156,17 +174,24 @@ export default function Home() {
               {mainCardOdds.map((fight, i) => (
                 <div
                   key={fight.id || i}
-                  onClick={() => { setSelectedFight(fight); fetchPrediction(fight); }}
+                  onClick={() => {
+                    setSelectedFight(fight);
+                    setPrediction(null);
+                    fetchPrediction(fight);
+                  }}
                   className={`fight-item${selectedFight?.id === fight.id ? " active" : ""}`}
                 >
-                  <div className="fight-names">{fight.home_team} vs. {fight.away_team}</div>
+                  <div className="fight-names">{fight.fighterA} vs. {fight.fighterB}</div>
                   <div className="fight-meta">
                     <span className="fight-wc">MMA</span>
-                    {i === 0 && <span className="fight-tag">Live Odds</span>}
                   </div>
                   <div className="fight-pick-row">
-                    <span className="fight-pick-name">Odds available</span>
-                    <span className="fight-pick-pct">{fight.bookmakers?.length || 0} books</span>
+                  <span className="fight-pick-name">
+  {fight.odds?.bookmakers?.length ? "Odds available" : "No odds yet"}
+</span> 
+                    <span className="fight-pick-pct">
+  {fight.odds?.bookmakers?.length ? `${fight.odds.bookmakers.length} books` : "No odds yet"}
+</span>
                   </div>
                 </div>
               ))}
@@ -186,18 +211,18 @@ export default function Home() {
             <div className="card-body">
               <div className="tot">
                 <div className="fighter-a">
-                  <div className="fighter-name">{selectedFight?.home_team || "Loading..."}</div>
+                  <div className="fighter-name">{selectedFight?.fighterA || "Loading..."}</div>
                   <div className="fighter-meta">
-                    <span>Stats loading soon</span>
+                  <span>{selectedFight?.recordA || "Record unavailable"}</span>
                   </div>
                 </div>
                 <div className="vs-col">
                   <div className="vs-text">vs</div>
                 </div>
                 <div className="fighter-b">
-                  <div className="fighter-name">{selectedFight?.away_team || "Loading..."}</div>
+                  <div className="fighter-name">{selectedFight?.fighterB || "Loading..."}</div>
                   <div className="fighter-meta" style={{ alignItems: "flex-end" }}>
-                    <span>Stats loading soon</span>
+                    <span>{selectedFight?.recordB || "Record unavailable"}</span>
                   </div>
                 </div>
               </div>
@@ -258,40 +283,40 @@ export default function Home() {
                 <div className="ai-loading">Generating analysis...</div>
               ) : prediction ? (
                 <div className="ai-section">
-                  <div className="ai-block">
-                    <div className="ai-block-label">Key Advantages — {prediction.predictedWinner}</div>
-                    <div className="ai-block-text">{prediction.keyAdvantages}</div>
-                  </div>
-                  <div className="ai-block">
-                    <div className="ai-block-label">Biggest Risk</div>
-                    <div className="ai-block-text">{prediction.biggestRisk}</div>
-                  </div>
-                  <div className="ai-block">
-                    <div className="ai-block-label">Likely Fight Script</div>
-                    <div className="ai-block-text">{prediction.fightScript}</div>
-                  </div>
-                  <div className="ai-block">
-                    <div className="ai-block-label">Prediction</div>
-                    <div className="pred-row">
-                      <div className="pred-name">{prediction.predictedWinner}</div>
-                      <div className="pred-conf">{prediction.confidence}% confidence</div>
-                    </div>
-                    <div className="conf-track">
-                      <div className="conf-fill" style={{ width: `${prediction.confidence}%` }}></div>
-                    </div>
-                  </div>
-                  <div className="ai-block ai-block-wrong">
-                    <div className="ai-block-label ai-block-label-wrong">Why the AI could be wrong</div>
-                    <div className="wrong-list">
-                      {prediction.whyWrong?.map((reason: string, i: number) => (
-                        <div key={i} className="wrong-item">
-                          <span className="wrong-dot">–</span>
-                          <span>{reason}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+  <div className="ai-block">
+    <div className="ai-block-label">Key Advantages — {prediction.claude?.predictedWinner}</div>
+    <div className="ai-block-text">{prediction.claude?.keyAdvantages}</div>
+  </div>
+  <div className="ai-block">
+    <div className="ai-block-label">Biggest Risk</div>
+    <div className="ai-block-text">{prediction.claude?.biggestRisk}</div>
+  </div>
+  <div className="ai-block">
+    <div className="ai-block-label">Likely Fight Script</div>
+    <div className="ai-block-text">{prediction.claude?.fightScript}</div>
+  </div>
+  <div className="ai-block">
+    <div className="ai-block-label">Prediction</div>
+    <div className="pred-row">
+      <div className="pred-name">{prediction.claude?.predictedWinner}</div>
+      <div className="pred-conf">{prediction.claude?.confidence}% confidence</div>
+    </div>
+    <div className="conf-track">
+      <div className="conf-fill" style={{ width: `${prediction.claude?.confidence}%` }}></div>
+    </div>
+  </div>
+  <div className="ai-block ai-block-wrong">
+    <div className="ai-block-label ai-block-label-wrong">Why the AI could be wrong</div>
+    <div className="wrong-list">
+      {prediction.claude?.whyWrong?.map((reason: string, i: number) => (
+        <div key={i} className="wrong-item">
+          <span className="wrong-dot">–</span>
+          <span>{reason}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
               ) : (
                 <div className="ai-loading">Select a fight to generate analysis</div>
               )}
@@ -310,24 +335,34 @@ export default function Home() {
               <div className="odds-col-labels">
                 <span className="odds-col-label">Bookmaker</span>
                 <div style={{ display: "flex", gap: "26px" }}>
-                  <span className="odds-col-label">{selectedFight?.home_team?.split(" ").pop() || "Fighter A"}</span>
-                  <span className="odds-col-label">{selectedFight?.away_team?.split(" ").pop() || "Fighter B"}</span>
+                <span className="odds-col-label">
+  {selectedFight?.fighterA?.split(" ").pop() || "Fighter A"}
+</span>
+
+<span className="odds-col-label">
+  {selectedFight?.fighterB?.split(" ").pop() || "Fighter B"}
+</span>
                 </div>
               </div>
-              {selectedFight?.bookmakers?.map((bookmaker: any, i: number) => {
-                const outcomes = bookmaker.markets?.[0]?.outcomes || [];
-                const homeOdds = outcomes.find((o: any) => o.name === selectedFight.home_team);
-                const awayOdds = outcomes.find((o: any) => o.name === selectedFight.away_team);
-                return (
-                  <div key={i} className="odds-book">
-                    <span className="book-name">{bookmaker.title}</span>
-                    <div className="odds-pair">
-                      <span className="odd-fav">{homeOdds?.price ?? "—"}</span>
-                      <span className="odd-dog">{awayOdds?.price ?? "—"}</span>
-                    </div>
-                  </div>
-                );
-              })}
+              {selectedFight?.odds?.bookmakers?.length ? (
+  selectedFight.odds.bookmakers.map((bookmaker: any, i: number) => {
+    const outcomes = bookmaker.markets?.[0]?.outcomes || [];
+    const homeOdds = outcomes.find((o: any) => o.name === selectedFight.fighterA);
+    const awayOdds = outcomes.find((o: any) => o.name === selectedFight.fighterB);
+
+    return (
+      <div key={i} className="odds-book">
+        <span className="book-name">{bookmaker.title}</span>
+        <div className="odds-pair">
+          <span className="odd-fav">{homeOdds?.price ?? "—"}</span>
+          <span className="odd-dog">{awayOdds?.price ?? "—"}</span>
+        </div>
+      </div>
+    );
+  })
+) : (
+  <div className="ai-loading">Odds not available yet</div>
+)}
             </div>
           </div>
 
@@ -339,26 +374,26 @@ export default function Home() {
             <div className="card-body">
               <div className="value-card">
                 <div className="value-row">
-                  <span className="value-label">{selectedFight?.home_team?.split(" ").pop() || "Fighter A"} — Market Implied</span>
+                  <span className="value-label">{selectedFight?.fighterA?.split(" ").pop() || "Fighter A"} — Market Implied</span>
                   <span className="value-num">{homeImplied !== null ? `${homeImplied}%` : "—"}</span>
                 </div>
                 <div className="value-row">
-                  <span className="value-label">{selectedFight?.away_team?.split(" ").pop() || "Fighter B"} — Market Implied</span>
+                  <span className="value-label">{selectedFight?.fighterB?.split(" ").pop() || "Fighter B"} — Market Implied</span>
                   <span className="value-num">{awayImplied !== null ? `${awayImplied}%` : "—"}</span>
                 </div>
                 <hr className="edge-divider" />
                 <div className="value-row">
                   <span className="value-label">AI Win Probability</span>
-                  <span className="value-num">{prediction ? `${prediction.confidence}%` : "Pending AI"}</span>
+                  <span className="value-num">{prediction?.consensus?.confidence ? `${prediction.consensus.confidence}%` : "Pending AI"}</span>
                 </div>
                 <div className="value-row">
                   <span className="value-label">Value Edge</span>
-                  {prediction && homeImplied ? (
-                    <span className={prediction.confidence > homeImplied ? "edge-pos" : "edge-neg"}>
-                      {prediction.confidence > homeImplied
-                        ? `+${prediction.confidence - homeImplied}% edge`
-                        : `–${homeImplied - prediction.confidence}% no edge`}
-                    </span>
+                  {prediction?.consensus?.confidence && homeImplied ? (
+  <span className={prediction.consensus.confidence > homeImplied ? "edge-pos" : "edge-neg"}>
+    {prediction.consensus.confidence > homeImplied
+      ? `+${prediction.consensus.confidence - homeImplied}% edge`
+      : `–${homeImplied - prediction.consensus.confidence}% no edge`}
+  </span>
                   ) : (
                     <span className="value-num">Pending AI</span>
                   )}
@@ -374,9 +409,9 @@ export default function Home() {
             </div>
             <div className="card-body">
               {[
-                { model: "Claude", color: "#CF9B60", pick: prediction?.predictedWinner || "Pending", conf: prediction ? `${prediction.confidence}%` : "—" },
-                { model: "GPT-4", color: "#5DC98A", pick: "Pending", conf: "—" },
-                { model: "Gemini", color: "#5B9EE8", pick: "Pending", conf: "—" },
+                { model: "Claude", color: "#CF9B60", pick: prediction?.claude?.predictedWinner || "Pending", conf: prediction?.claude ? `${prediction.claude.confidence}%` : "—" },
+                { model: "GPT-4", color: "#5DC98A", pick: prediction?.gpt?.predictedWinner || "Pending", conf: prediction?.gpt ? `${prediction.gpt.confidence}%` : "—" },
+                { model: "Gemini", color: "#5B9EE8", pick: prediction?.gemini?.predictedWinner || "Pending", conf: prediction?.gemini ? `${prediction.gemini.confidence}%` : "—" },
               ].map((m, i) => (
                 <div key={i} className="model-row">
                   <div className="model-name">
@@ -392,9 +427,11 @@ export default function Home() {
               <div className="consensus-result">
                 <div>
                   <div className="cons-eyebrow">Consensus pick</div>
-                  <div className="cons-pick">{prediction?.predictedWinner || "Pending AI"}</div>
+                  <div className="cons-pick">{prediction?.consensus?.winner || "Pending AI"}</div>
                 </div>
-                <div className="cons-pct">{prediction ? `${prediction.confidence}%` : "—"}</div>
+                <div className="cons-pct">
+  {prediction?.consensus?.confidence ? `${prediction.consensus.confidence}%` : "—"}
+</div>
               </div>
             </div>
           </div>
@@ -406,8 +443,8 @@ export default function Home() {
             </div>
             <div className="card-body">
               <div className="fighter-toggle">
-                <div className="toggle-btn toggle-active">{selectedFight?.home_team?.split(" ").pop() || "Fighter A"}</div>
-                <div className="toggle-btn">{selectedFight?.away_team?.split(" ").pop() || "Fighter B"}</div>
+                <div className="toggle-btn toggle-active">{selectedFight?.fighterA?.split(" ").pop() || "Fighter A"}</div>
+                <div className="toggle-btn">{selectedFight?.fighterB?.split(" ").pop() || "Fighter B"}</div>
               </div>
               <div className="ai-loading">Fight history coming soon</div>
             </div>
