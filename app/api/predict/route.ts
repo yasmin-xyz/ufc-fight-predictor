@@ -20,8 +20,12 @@ Betting Market Data:
 
 Provide your analysis in the following JSON format exactly:
 {
+ {
   "predictedWinner": "fighter name",
   "confidence": 65,
+  "method": "Decision, KO/TKO, Submission, or Unknown",
+  "round": 3,
+  "bettingLean": "Value, Pass, Risky, or Lean",
   "keyAdvantages": "2-3 sentences about the predicted winner's key advantages",
   "biggestRisk": "2-3 sentences about the biggest risk or threat to your prediction",
   "fightScript": "3-4 sentences describing how this fight will likely play out",

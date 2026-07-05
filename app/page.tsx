@@ -263,102 +263,137 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
             </div>
           </div>
 
-        {/* Physical Matchup */}
+          {/* Statistical Edge */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-label">Statistical Edge</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "10px", color: "rgba(255,255,255,0.28)" }}>
+                  <div style={{ width: "10px", height: "3px", borderRadius: "2px", background: "#6C6FE8" }}></div>Advantage
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "10px", color: "rgba(255,255,255,0.28)" }}>
+                  <div style={{ width: "10px", height: "3px", borderRadius: "2px", background: "rgba(108,111,232,0.22)" }}></div>Disadvantage
+                </div>
+              </div>
+            </div>
+            <div className="card-body">
+              <div className="stat-grid">
+                {[
+                  { name: "Significant Strikes / min", a: "4.12", b: "3.54", aWidth: 92, bWidth: 72, aAdv: true },
+                  { name: "Strike Accuracy", a: "58%", b: "48%", aWidth: 96, bWidth: 76, aAdv: true },
+                  { name: "Strike Defense", a: "67%", b: "71%", aWidth: 80, bWidth: 88, aAdv: false },
+                  { name: "Takedown Accuracy", a: "82%", b: "38%", aWidth: 98, bWidth: 44, aAdv: true },
+                  { name: "Takedown Defense", a: "74%", b: "78%", aWidth: 84, bWidth: 92, aAdv: false },
+                  { name: "Submission Attempts / 15min", a: "1.4", b: "0.4", aWidth: 94, bWidth: 20, aAdv: true },
+                ].map((stat, i) => (
+                  <div key={i} className="stat-row">
+                    <div className={`stat-val ${stat.aAdv ? "stat-val-a" : "stat-val-b"}`} style={{ textAlign: "left" }}>{stat.a}</div>
+                    <div className="stat-center">
+                      <div className="stat-name">{stat.name}</div>
+                      <div className="bar-track">
+                        <div className="bar-left">
+                          <div className={`bar-fill-a ${!stat.aAdv ? "dis" : ""}`} style={{ width: `${stat.aWidth}%` }}></div>
+                        </div>
+                        <div className="bar-right">
+                          <div className={`bar-fill-b ${!stat.aAdv ? "adv" : ""}`} style={{ width: `${stat.bWidth}%` }}></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className={`stat-val ${!stat.aAdv ? "stat-val-a" : "stat-val-b"}`} style={{ textAlign: "right" }}>{stat.b}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+         {/* AI Fight Breakdown */}
 <div className="card">
   <div className="card-header">
-    <span className="card-label">Physical Matchup</span>
-    <span className="ai-models-label">ESPN profile data</span>
+    <span className="card-label">AI Fight Breakdown</span>
+    <span className="ai-models-label">Claude · GPT-4 · Gemini</span>
   </div>
 
   <div className="card-body">
-    <div className="stat-grid">
-      {[
-        { name: "Record", a: fighterAStats?.record || selectedFight?.recordA || "—", b: fighterBStats?.record || selectedFight?.recordB || "—" },
-        { name: "Age", a: fighterAStats?.age || "—", b: fighterBStats?.age || "—" },
-        { name: "Height", a: fighterAStats?.height || "—", b: fighterBStats?.height || "—" },
-        { name: "Reach", a: fighterAStats?.reach || "—", b: fighterBStats?.reach || "—" },
-        { name: "Stance", a: fighterAStats?.stance || "—", b: fighterBStats?.stance || "—" },
-        { name: "Style", a: fighterAStats?.style || "—", b: fighterBStats?.style || "—" },
-      ].map((stat, i) => (
-        <div key={i} className="stat-row">
-          <div className="stat-val stat-val-a" style={{ textAlign: "left" }}>
-            {stat.a}
-          </div>
+    {loadingPrediction ? (
+      <div className="ai-loading">Generating analysis...</div>
+    ) : prediction ? (
+      <div className="ai-section">
+        <div
+          className="ai-block"
+          style={{
+            background: "linear-gradient(135deg, rgba(108,111,232,0.16), rgba(255,255,255,0.03))",
+            border: "1px solid rgba(108,111,232,0.28)",
+          }}
+        >
+          <div className="ai-block-label">Prediction Summary</div>
 
-          <div className="stat-center">
-            <div className="stat-name">{stat.name}</div>
-            <div className="bar-track">
-              <div className="bar-left">
-                <div className="bar-fill-a" style={{ width: "100%" }}></div>
-              </div>
-              <div className="bar-right">
-                <div className="bar-fill-b adv" style={{ width: "100%" }}></div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "24px" }}>
+            <div>
+              <div className="cons-eyebrow">Winner</div>
+              <div className="pred-name" style={{ fontSize: "22px" }}>
+                {prediction.claude?.predictedWinner || "—"}
               </div>
             </div>
-          </div>
 
-          <div className="stat-val stat-val-b" style={{ textAlign: "right" }}>
-            {stat.b}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-</div>
-
-          {/* AI Fight Breakdown */}
-          <div className="card">
-            <div className="card-header">
-              <span className="card-label">AI Fight Breakdown</span>
-              <span className="ai-models-label">Claude · GPT-4 · Gemini</span>
-            </div>
-            <div className="card-body">
-              {loadingPrediction ? (
-                <div className="ai-loading">Generating analysis...</div>
-              ) : prediction ? (
-                <div className="ai-section">
-  <div className="ai-block">
-    <div className="ai-block-label">Key Advantages — {prediction.claude?.predictedWinner}</div>
-    <div className="ai-block-text">{prediction.claude?.keyAdvantages}</div>
-  </div>
-  <div className="ai-block">
-    <div className="ai-block-label">Biggest Risk</div>
-    <div className="ai-block-text">{prediction.claude?.biggestRisk}</div>
-  </div>
-  <div className="ai-block">
-    <div className="ai-block-label">Likely Fight Script</div>
-    <div className="ai-block-text">{prediction.claude?.fightScript}</div>
-  </div>
-  <div className="ai-block">
-    <div className="ai-block-label">Prediction</div>
-    <div className="pred-row">
-      <div className="pred-name">{prediction.claude?.predictedWinner}</div>
-      <div className="pred-conf">{prediction.claude?.confidence}% confidence</div>
-    </div>
-    <div className="conf-track">
-      <div className="conf-fill" style={{ width: `${prediction.claude?.confidence}%` }}></div>
-    </div>
-  </div>
-  <div className="ai-block ai-block-wrong">
-    <div className="ai-block-label ai-block-label-wrong">Why the AI could be wrong</div>
-    <div className="wrong-list">
-      {prediction.claude?.whyWrong?.map((reason: string, i: number) => (
-        <div key={i} className="wrong-item">
-          <span className="wrong-dot">–</span>
-          <span>{reason}</span>
-        </div>
-      ))}
-    </div>
-  </div>
-</div>
-              ) : (
-                <div className="ai-loading">Select a fight to generate analysis</div>
-              )}
+            <div style={{ textAlign: "right" }}>
+              <div className="cons-eyebrow">Confidence</div>
+              <div className="pred-name" style={{ fontSize: "22px" }}>
+                {prediction.claude?.confidence || "—"}%
+              </div>
             </div>
           </div>
 
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginTop: "18px" }}>
+            <div className="value-card">
+              <div className="cons-eyebrow">Method</div>
+              <div className="pred-name">{prediction.claude?.method || "—"}</div>
+            </div>
+
+            <div className="value-card">
+              <div className="cons-eyebrow">Round</div>
+              <div className="pred-name">{prediction.claude?.round || "—"}</div>
+            </div>
+
+            <div className="value-card">
+              <div className="cons-eyebrow">Betting Lean</div>
+              <div className="pred-name">{prediction.claude?.bettingLean || "—"}</div>
+            </div>
+          </div>
         </div>
 
+        <div className="ai-block">
+          <div className="ai-block-label">Key Advantages — {prediction.claude?.predictedWinner}</div>
+          <div className="ai-block-text">{prediction.claude?.keyAdvantages}</div>
+        </div>
+
+        <div className="ai-block">
+          <div className="ai-block-label">Biggest Risk</div>
+          <div className="ai-block-text">{prediction.claude?.biggestRisk}</div>
+        </div>
+
+        <div className="ai-block">
+          <div className="ai-block-label">Likely Fight Script</div>
+          <div className="ai-block-text">{prediction.claude?.fightScript}</div>
+        </div>
+
+        <div className="ai-block ai-block-wrong">
+          <div className="ai-block-label ai-block-label-wrong">Why the AI could be wrong</div>
+          <div className="wrong-list">
+            {prediction.claude?.whyWrong?.map((reason: string, i: number) => (
+              <div key={i} className="wrong-item">
+                <span className="wrong-dot">–</span>
+                <span>{reason}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    ) : (
+      <div className="ai-loading">Select a fight to generate analysis</div>
+    )}
+  </div>
+</div>
+</div>
         {/* RIGHT — Odds */}
         <div className="right-col">
           <div className="card">
