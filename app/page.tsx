@@ -45,6 +45,8 @@ export default function Home() {
   const [odds, setOdds] = useState<any[]>([]);
   const [loadingOdds, setLoadingOdds] = useState(true);
   const [selectedFight, setSelectedFight] = useState<any>(null);
+  const [fighterAStats, setFighterAStats] = useState<any>(null);
+const [fighterBStats, setFighterBStats] = useState<any>(null);
   const [ufcEvent, setUfcEvent] = useState<any>(null);
 const [mergedFights, setMergedFights] = useState<any[]>([]);
   const [prediction, setPrediction] = useState<any>(null);
@@ -106,6 +108,28 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
     }
     fetchOdds();
   }, []);
+  useEffect(() => {
+    if (!selectedFight?.fighterAId || !selectedFight?.fighterBId) return;
+  
+    async function loadFighters() {
+      try {
+        const [fighterARes, fighterBRes] = await Promise.all([
+          fetch(`/api/fighter-stats?id=${selectedFight.fighterAId}`),
+          fetch(`/api/fighter-stats?id=${selectedFight.fighterBId}`)
+        ]);
+  
+        const fighterA = await fighterARes.json();
+        const fighterB = await fighterBRes.json();
+  
+        setFighterAStats(fighterA);
+        setFighterBStats(fighterB);
+      } catch (err) {
+        console.error("Failed loading fighter stats", err);
+      }
+    }
+  
+    loadFighters();
+  }, [selectedFight]);
   const ufc329Fights = [
     "Conor McGregor vs. Max Holloway",
   ];
@@ -212,18 +236,28 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
               <div className="tot">
                 <div className="fighter-a">
                   <div className="fighter-name">{selectedFight?.fighterA || "Loading..."}</div>
-                  <div className="fighter-meta">
-                  <span>{selectedFight?.recordA || "Record unavailable"}</span>
-                  </div>
+                  <div className="fighter-record">{fighterAStats?.record || selectedFight?.recordA || "—"}</div>
+<div className="fighter-meta">
+  <span>Age {fighterAStats?.age || "—"}</span>
+  <span>{fighterAStats?.height || "Height —"}</span>
+  <span>{fighterAStats?.reach || "Reach —"}</span>
+  <span>{fighterAStats?.stance || "Stance —"}</span>
+  <span>{fighterAStats?.style || "Style —"}</span>
+</div>
                 </div>
                 <div className="vs-col">
                   <div className="vs-text">vs</div>
                 </div>
                 <div className="fighter-b">
                   <div className="fighter-name">{selectedFight?.fighterB || "Loading..."}</div>
-                  <div className="fighter-meta" style={{ alignItems: "flex-end" }}>
-                    <span>{selectedFight?.recordB || "Record unavailable"}</span>
-                  </div>
+                  <div className="fighter-record">{fighterBStats?.record || selectedFight?.recordB || "—"}</div>
+<div className="fighter-meta">
+  <span>Age {fighterBStats?.age || "—"}</span>
+  <span>{fighterBStats?.height || "Height —"}</span>
+  <span>{fighterBStats?.reach || "Reach —"}</span>
+  <span>{fighterBStats?.stance || "Stance —"}</span>
+  <span>{fighterBStats?.style || "Style —"}</span>
+</div>
                 </div>
               </div>
             </div>

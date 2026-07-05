@@ -22,10 +22,18 @@ export async function GET() {
         date: competition.date,
         weightClass: competition.type?.abbreviation || "MMA",
         venue: competition.venue?.fullName || event.venue?.fullName || "Venue TBD",
+      
         fighterA: competitors[0]?.athlete?.displayName || "Fighter A",
         fighterB: competitors[1]?.athlete?.displayName || "Fighter B",
+      
         recordA: competitors[0]?.records?.[0]?.summary || "—",
         recordB: competitors[1]?.records?.[0]?.summary || "—",
+      
+        fighterAId: competitors[0]?.id,
+        fighterBId: competitors[1]?.id,
+
+        fighterAFlag: competitors[0]?.flag?.href,
+        fighterBFlag: competitors[1]?.flag?.href,
       };
     });
 
