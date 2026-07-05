@@ -263,48 +263,48 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
             </div>
           </div>
 
-          {/* Statistical Edge */}
-          <div className="card">
-            <div className="card-header">
-              <span className="card-label">Statistical Edge</span>
-              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "10px", color: "rgba(255,255,255,0.28)" }}>
-                  <div style={{ width: "10px", height: "3px", borderRadius: "2px", background: "#6C6FE8" }}></div>Advantage
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "10px", color: "rgba(255,255,255,0.28)" }}>
-                  <div style={{ width: "10px", height: "3px", borderRadius: "2px", background: "rgba(108,111,232,0.22)" }}></div>Disadvantage
-                </div>
+        {/* Physical Matchup */}
+<div className="card">
+  <div className="card-header">
+    <span className="card-label">Physical Matchup</span>
+    <span className="ai-models-label">ESPN profile data</span>
+  </div>
+
+  <div className="card-body">
+    <div className="stat-grid">
+      {[
+        { name: "Record", a: fighterAStats?.record || selectedFight?.recordA || "—", b: fighterBStats?.record || selectedFight?.recordB || "—" },
+        { name: "Age", a: fighterAStats?.age || "—", b: fighterBStats?.age || "—" },
+        { name: "Height", a: fighterAStats?.height || "—", b: fighterBStats?.height || "—" },
+        { name: "Reach", a: fighterAStats?.reach || "—", b: fighterBStats?.reach || "—" },
+        { name: "Stance", a: fighterAStats?.stance || "—", b: fighterBStats?.stance || "—" },
+        { name: "Style", a: fighterAStats?.style || "—", b: fighterBStats?.style || "—" },
+      ].map((stat, i) => (
+        <div key={i} className="stat-row">
+          <div className="stat-val stat-val-a" style={{ textAlign: "left" }}>
+            {stat.a}
+          </div>
+
+          <div className="stat-center">
+            <div className="stat-name">{stat.name}</div>
+            <div className="bar-track">
+              <div className="bar-left">
+                <div className="bar-fill-a" style={{ width: "100%" }}></div>
               </div>
-            </div>
-            <div className="card-body">
-              <div className="stat-grid">
-                {[
-                  { name: "Significant Strikes / min", a: "4.12", b: "3.54", aWidth: 92, bWidth: 72, aAdv: true },
-                  { name: "Strike Accuracy", a: "58%", b: "48%", aWidth: 96, bWidth: 76, aAdv: true },
-                  { name: "Strike Defense", a: "67%", b: "71%", aWidth: 80, bWidth: 88, aAdv: false },
-                  { name: "Takedown Accuracy", a: "82%", b: "38%", aWidth: 98, bWidth: 44, aAdv: true },
-                  { name: "Takedown Defense", a: "74%", b: "78%", aWidth: 84, bWidth: 92, aAdv: false },
-                  { name: "Submission Attempts / 15min", a: "1.4", b: "0.4", aWidth: 94, bWidth: 20, aAdv: true },
-                ].map((stat, i) => (
-                  <div key={i} className="stat-row">
-                    <div className={`stat-val ${stat.aAdv ? "stat-val-a" : "stat-val-b"}`} style={{ textAlign: "left" }}>{stat.a}</div>
-                    <div className="stat-center">
-                      <div className="stat-name">{stat.name}</div>
-                      <div className="bar-track">
-                        <div className="bar-left">
-                          <div className={`bar-fill-a ${!stat.aAdv ? "dis" : ""}`} style={{ width: `${stat.aWidth}%` }}></div>
-                        </div>
-                        <div className="bar-right">
-                          <div className={`bar-fill-b ${!stat.aAdv ? "adv" : ""}`} style={{ width: `${stat.bWidth}%` }}></div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className={`stat-val ${!stat.aAdv ? "stat-val-a" : "stat-val-b"}`} style={{ textAlign: "right" }}>{stat.b}</div>
-                  </div>
-                ))}
+              <div className="bar-right">
+                <div className="bar-fill-b adv" style={{ width: "100%" }}></div>
               </div>
             </div>
           </div>
+
+          <div className="stat-val stat-val-b" style={{ textAlign: "right" }}>
+            {stat.b}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
 
           {/* AI Fight Breakdown */}
           <div className="card">
