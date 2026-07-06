@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { mergeFightData } from "./lib/mergeFightData";
+import { fighterMetrics } from "./data/fighterMetrics";
 
 function fightName(fight: any) {
   return `${fight.home_team} vs. ${fight.away_team}`;
@@ -40,6 +41,10 @@ function impliedProbability(americanOdds: number) {
   }
   return Math.round((100 / (americanOdds + 100)) * 100);
 }
+function formatAmericanOdds(odds: number | null | undefined) {
+  if (odds === null || odds === undefined) return "—";
+  return odds > 0 ? `+${odds}` : `${odds}`;
+}
 
 export default function Home() {
   const [odds, setOdds] = useState<any[]>([]);
@@ -70,7 +75,9 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
           fighterA: fight.fighterA,
           fighterB: fight.fighterB,
           oddsA: homeOdds?.price || 0,
-          oddsB: awayOdds?.price || 0,    
+          oddsB: awayOdds?.price || 0,
+          fighterAStats,
+          fighterBStats,
         }),
       });
       const data = await res.json();
@@ -148,6 +155,17 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
   const homeImplied = impliedProbability(homeOdds?.price);
   const awayImplied = impliedProbability(awayOdds?.price);
 
+  const fighterAMetrics = fighterMetrics[selectedFight?.fighterA] || {};
+const fighterBMetrics = fighterMetrics[selectedFight?.fighterB] || {};
+
+const statRows = [
+  { name: "Significant Strikes / min", a: fighterAMetrics.slpm || "—", b: fighterBMetrics.slpm || "—", aWidth: 92, bWidth: 72, aAdv: true },
+  { name: "Strike Accuracy", a: fighterAMetrics.strAcc || "—", b: fighterBMetrics.strAcc || "—", aWidth: 96, bWidth: 76, aAdv: true },
+  { name: "Strike Defense", a: fighterAMetrics.strDef || "—", b: fighterBMetrics.strDef || "—", aWidth: 80, bWidth: 88, aAdv: false },
+  { name: "Takedown Accuracy", a: fighterAMetrics.tdAcc || "—", b: fighterBMetrics.tdAcc || "—", aWidth: 98, bWidth: 44, aAdv: true },
+  { name: "Takedown Defense", a: fighterAMetrics.tdDef || "—", b: fighterBMetrics.tdDef || "—", aWidth: 84, bWidth: 92, aAdv: false },
+  { name: "Submission Attempts / 15min", a: fighterAMetrics.subAvg || "—", b: fighterBMetrics.subAvg || "—", aWidth: 94, bWidth: 20, aAdv: true },
+];
   return (
     <main>
      <nav className="nav">
@@ -423,8 +441,8 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
       <div key={i} className="odds-book">
         <span className="book-name">{bookmaker.title}</span>
         <div className="odds-pair">
-          <span className="odd-fav">{homeOdds?.price ?? "—"}</span>
-          <span className="odd-dog">{awayOdds?.price ?? "—"}</span>
+          <span className="odd-fav">{formatAmericanOdds(homeOdds?.price)}</span>
+          <span className="odd-dog">{formatAmericanOdds(awayOdds?.price)}</span>
         </div>
       </div>
     );

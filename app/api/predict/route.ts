@@ -4,39 +4,72 @@ import Anthropic from "@anthropic-ai/sdk";
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
+function impliedProbabilityFromAmericanOdds(odds: number | null | undefined) {
+  if (!odds) return null;
 
+  if (odds < 0) {
+    return Math.round((-odds / (-odds + 100)) * 100);
+  }
+
+  return Math.round((100 / (odds + 100)) * 100);
+}
 export async function POST(request: Request) {
   try {
-    const { fighterA, fighterB, oddsA, oddsB, impliedA, impliedB } =
-      await request.json();
+    const { fighterA, fighterB, oddsA, oddsB, fighterAStats, fighterBStats } =
+    await request.json();
 
-    const prompt = `You are an expert MMA analyst. Analyze this upcoming fight and provide a structured breakdown.
+    const prompt = `You are an expert UFC analyst.
 
-Fight: ${fighterA} vs ${fighterB}
+Analyze this upcoming fight using BOTH the fighter information and the betting market.
 
-Betting Market Data:
-- ${fighterA} American odds: ${oddsA} (implied probability: ${impliedA}%)
-- ${fighterB} American odds: ${oddsB} (implied probability: ${impliedB}%)
+Fight:
+${fighterA} vs ${fighterB}
 
-Provide your analysis in the following JSON format exactly:
+Betting Market:
+- ${fighterA}: ${oddsA}
+- ${fighterB}: ${oddsB}
+
+${fighterA}
+- Record: ${fighterAStats?.record || "Unknown"}
+- Age: ${fighterAStats?.age || "Unknown"}
+- Height: ${fighterAStats?.height || "Unknown"}
+- Reach: ${fighterAStats?.reach || "Unknown"}
+- Stance: ${fighterAStats?.stance || "Unknown"}
+- Style: ${fighterAStats?.style || "Unknown"}
+
+${fighterB}
+- Record: ${fighterBStats?.record || "Unknown"}
+- Age: ${fighterBStats?.age || "Unknown"}
+- Height: ${fighterBStats?.height || "Unknown"}
+- Reach: ${fighterBStats?.reach || "Unknown"}
+- Stance: ${fighterBStats?.stance || "Unknown"}
+- Style: ${fighterBStats?.style || "Unknown"}
+
+Consider:
+- styles and matchup dynamics
+- reach and physical advantages
+- age and experience
+- betting market expectations
+- finishing ability
+- likely path to victory
+
+Return ONLY valid JSON in this format:
+
 {
- {
-  "predictedWinner": "fighter name",
-  "confidence": 65,
-  "method": "Decision, KO/TKO, Submission, or Unknown",
-  "round": 3,
-  "bettingLean": "Value, Pass, Risky, or Lean",
-  "keyAdvantages": "2-3 sentences about the predicted winner's key advantages",
-  "biggestRisk": "2-3 sentences about the biggest risk or threat to your prediction",
-  "fightScript": "3-4 sentences describing how this fight will likely play out",
+  "predictedWinner": "",
+  "confidence": 72,
+  "method": "",
+  "round": "",
+  "bettingLean": "",
+  "keyAdvantages": "",
+  "biggestRisk": "",
+  "fightScript": "",
   "whyWrong": [
-    "First reason the prediction could be wrong",
-    "Second reason the prediction could be wrong",
-    "Third reason the prediction could be wrong"
+    "",
+    "",
+    ""
   ]
-}
-
-Return only valid JSON, no other text.`;
+}`;
 
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
@@ -56,7 +89,16 @@ Return only valid JSON, no other text.`;
     analysis.winner ||
     analysis.predicted_winner ||
     analysis.pick ||
-    (impliedA >= impliedB ? fighterA : fighterB);
+    (() => {
+      const impliedA = impliedProbabilityFromAmericanOdds(oddsA);
+      const impliedB = impliedProbabilityFromAmericanOdds(oddsB);
+    
+      if (impliedA === null && impliedB === null) return fighterA;
+      if (impliedA === null) return fighterB;
+      if (impliedB === null) return fighterA;
+    
+      return impliedA >= impliedB ? fighterA : fighterB;
+    })();
     return NextResponse.json({
       claude: {
         ...analysis,
