@@ -157,7 +157,7 @@ export async function POST(request: Request) {
       }),
 
       openai.responses.create({
-        model: "gpt-5.5",
+        model: "gpt-5.4-mini",
         input: prompt,
       }),
 
@@ -197,7 +197,7 @@ export async function POST(request: Request) {
 
     if (geminiResult.status === "fulfilled") {
       gemini = normalizePrediction(
-        JSON.parse(cleanJson(geminiResult.value.text || "")),
+        JSON.parse(cleanJson(geminiResult.value.text ?? "")),
         fighterA,
         fighterB,
         oddsA,
