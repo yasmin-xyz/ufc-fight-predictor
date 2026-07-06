@@ -15,8 +15,16 @@ function impliedProbabilityFromAmericanOdds(odds: number | null | undefined) {
 }
 export async function POST(request: Request) {
   try {
-    const { fighterA, fighterB, oddsA, oddsB, fighterAStats, fighterBStats } =
-    await request.json();
+    const {
+      fighterA,
+      fighterB,
+      oddsA,
+      oddsB,
+      fighterAStats,
+      fighterBStats,
+      fighterAMetrics,
+      fighterBMetrics,
+    } = await request.json();
 
     const prompt = `You are an expert UFC analyst.
 
@@ -45,7 +53,30 @@ ${fighterB}
 - Stance: ${fighterBStats?.stance || "Unknown"}
 - Style: ${fighterBStats?.style || "Unknown"}
 
+Advanced Performance Metrics:
+
+${fighterA}
+- SLpM: ${fighterAMetrics?.slpm || "Unknown"}
+- Striking Accuracy: ${fighterAMetrics?.strAcc || "Unknown"}
+- SApM: ${fighterAMetrics?.sapm || "Unknown"}
+- Strike Defense: ${fighterAMetrics?.strDef || "Unknown"}
+- TD Avg: ${fighterAMetrics?.tdAvg || "Unknown"}
+- TD Accuracy: ${fighterAMetrics?.tdAcc || "Unknown"}
+- TD Defense: ${fighterAMetrics?.tdDef || "Unknown"}
+- Submission Avg: ${fighterAMetrics?.subAvg || "Unknown"}
+
+${fighterB}
+- SLpM: ${fighterBMetrics?.slpm || "Unknown"}
+- Striking Accuracy: ${fighterBMetrics?.strAcc || "Unknown"}
+- SApM: ${fighterBMetrics?.sapm || "Unknown"}
+- Strike Defense: ${fighterBMetrics?.strDef || "Unknown"}
+- TD Avg: ${fighterBMetrics?.tdAvg || "Unknown"}
+- TD Accuracy: ${fighterBMetrics?.tdAcc || "Unknown"}
+- TD Defense: ${fighterBMetrics?.tdDef || "Unknown"}
+- Submission Avg: ${fighterBMetrics?.subAvg || "Unknown"}
+
 Consider:
+- advanced performance metrics
 - styles and matchup dynamics
 - reach and physical advantages
 - age and experience

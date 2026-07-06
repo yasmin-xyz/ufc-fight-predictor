@@ -70,6 +70,8 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
     if (!fight) return;
     setLoadingPrediction(true);
     setPrediction(null);
+    const fighterAMetrics = fighterMetrics[fight.fighterA] || {};
+    const fighterBMetrics = fighterMetrics[fight.fighterB] || {};
 
     const bookmaker = fight.odds?.bookmakers?.[0];
     const outcomes = bookmaker?.markets?.[0]?.outcomes || [];
@@ -85,8 +87,12 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
           fighterB: fight.fighterB,
           oddsA: homeOdds?.price || 0,
           oddsB: awayOdds?.price || 0,
+        
           fighterAStats,
           fighterBStats,
+        
+          fighterAMetrics,
+          fighterBMetrics,
         }),
       });
       const data = await res.json();
