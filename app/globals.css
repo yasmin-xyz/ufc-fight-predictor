@@ -179,3 +179,18 @@ body {
 
 /* AI LOADING */
 .ai-loading { font-size: 13px; color: rgba(255,255,255,0.28); padding: 20px 0; text-align: center; font-style: italic; }
+
+/* FIGHTER HEADSHOT */
+.fighter-headshot {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 999px;
+  border: 1px solid rgba(108, 111, 232, 0.35);
+  margin-bottom: 14px;
+  background: rgba(255,255,255,0.04);
+}
+
+.fighter-headshot-b {
+  margin-left: auto;
+}

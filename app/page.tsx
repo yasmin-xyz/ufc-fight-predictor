@@ -65,6 +65,7 @@ const [fighterBStats, setFighterBStats] = useState<any>(null);
 const [mergedFights, setMergedFights] = useState<any[]>([]);
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
+  const [activeTab, setActiveTab] = useState("main");
 
   async function fetchPrediction(fight: any) {
     if (!fight) return;
@@ -162,6 +163,18 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
   );
 
   const mainCardOdds = mergedFights;
+  const mainCardFights = mergedFights.slice(-5).reverse();
+
+  const prelimFights = mergedFights.slice(-9, -5).reverse();
+  
+  const earlyPrelimFights = mergedFights.slice(0, -9).reverse();
+  
+  const visibleFights =
+    activeTab === "main"
+      ? mainCardFights
+      : activeTab === "prelims"
+      ? prelimFights
+      : earlyPrelimFights;
 
   const firstBookmaker = selectedFight?.odds?.bookmakers?.[0];  
   const outcomes = firstBookmaker?.markets?.[0]?.outcomes || [];
@@ -275,10 +288,27 @@ const statRows = [
       </div>
 
       <div className="tabs">
-        <div className="tab active">MAIN CARD</div>
-        <div className="tab">PRELIMS</div>
-        <div className="tab">EARLY PRELIMS</div>
-      </div>
+  <div
+    className={`tab ${activeTab === "main" ? "active" : ""}`}
+    onClick={() => setActiveTab("main")}
+  >
+    MAIN CARD
+  </div>
+
+  <div
+    className={`tab ${activeTab === "prelims" ? "active" : ""}`}
+    onClick={() => setActiveTab("prelims")}
+  >
+    PRELIMS
+  </div>
+
+  <div
+    className={`tab ${activeTab === "early" ? "active" : ""}`}
+    onClick={() => setActiveTab("early")}
+  >
+    EARLY PRELIMS
+  </div>
+</div>
 
       <div className="layout">
 
@@ -286,11 +316,13 @@ const statRows = [
         <div>
           <div className="card">
             <div className="card-header">
-              <span className="card-label">Main Card</span>
-              <span className="card-meta">{mainCardOdds.length} fights</span>
+            <span className="card-label">
+  {activeTab === "main" ? "Main Card" : activeTab === "prelims" ? "Prelims" : "Early Prelims"}
+</span>
+<span className="card-meta">{visibleFights.length} fights</span>
             </div>
             <div className="fight-list">
-              {mainCardOdds.map((fight, i) => (
+            {visibleFights.map((fight, i) => (
                 <div
                   key={fight.id || i}
                   onClick={() => {
@@ -329,8 +361,11 @@ const statRows = [
             </div>
             <div className="card-body">
               <div className="tot">
-                <div className="fighter-a">
-                  <div className="fighter-name">{selectedFight?.fighterA || "Loading..."}</div>
+              <div className="fighter-a">
+  {fighterAStats?.headshot && (
+    <img src={fighterAStats.headshot} alt={selectedFight?.fighterA} className="fighter-headshot" />
+  )}
+  <div className="fighter-name">{selectedFight?.fighterA || "Loading..."}</div>
                   <div className="fighter-record">{fighterAStats?.record || selectedFight?.recordA || "—"}</div>
 <div className="fighter-meta">
   <span>Age {fighterAStats?.age || "—"}</span>
@@ -344,7 +379,10 @@ const statRows = [
                   <div className="vs-text">vs</div>
                 </div>
                 <div className="fighter-b">
-                  <div className="fighter-name">{selectedFight?.fighterB || "Loading..."}</div>
+  {fighterBStats?.headshot && (
+    <img src={fighterBStats.headshot} alt={selectedFight?.fighterB} className="fighter-headshot" />
+  )}
+  <div className="fighter-name">{selectedFight?.fighterB || "Loading..."}</div>
                   <div className="fighter-record">{fighterBStats?.record || selectedFight?.recordB || "—"}</div>
 <div className="fighter-meta">
   <span>Age {fighterBStats?.age || "—"}</span>

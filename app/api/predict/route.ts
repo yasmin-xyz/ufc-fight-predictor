@@ -1,9 +1,20 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const google = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
+
 function impliedProbabilityFromAmericanOdds(odds: number | null | undefined) {
   if (!odds) return null;
 
@@ -13,20 +24,49 @@ function impliedProbabilityFromAmericanOdds(odds: number | null | undefined) {
 
   return Math.round((100 / (odds + 100)) * 100);
 }
-export async function POST(request: Request) {
-  try {
-    const {
-      fighterA,
-      fighterB,
-      oddsA,
-      oddsB,
-      fighterAStats,
-      fighterBStats,
-      fighterAMetrics,
-      fighterBMetrics,
-    } = await request.json();
 
-    const prompt = `You are an expert UFC analyst.
+function cleanJson(text: string) {
+  return text.replace(/```json\n?|\n?```/g, "").trim();
+}
+
+function normalizePrediction(analysis: any, fighterA: string, fighterB: string, oddsA: number, oddsB: number) {
+  const impliedA = impliedProbabilityFromAmericanOdds(oddsA);
+  const impliedB = impliedProbabilityFromAmericanOdds(oddsB);
+
+  const fallbackWinner =
+    impliedA === null && impliedB === null
+      ? fighterA
+      : impliedA === null
+      ? fighterB
+      : impliedB === null
+      ? fighterA
+      : impliedA >= impliedB
+      ? fighterA
+      : fighterB;
+
+  return {
+    ...analysis,
+    predictedWinner:
+      analysis.predictedWinner ||
+      analysis.winner ||
+      analysis.predicted_winner ||
+      analysis.pick ||
+      fallbackWinner,
+    confidence: analysis.confidence || 50,
+  };
+}
+
+function buildPrompt({
+  fighterA,
+  fighterB,
+  oddsA,
+  oddsB,
+  fighterAStats,
+  fighterBStats,
+  fighterAMetrics,
+  fighterBMetrics,
+}: any) {
+  return `You are an expert UFC analyst.
 
 Analyze this upcoming fight using BOTH the fighter information and the betting market.
 
@@ -101,49 +141,101 @@ Return ONLY valid JSON in this format:
     ""
   ]
 }`;
+}
 
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1024,
-      messages: [{ role: "user", content: prompt }],
-    });
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { fighterA, fighterB, oddsA, oddsB } = body;
+    const prompt = buildPrompt(body);
 
-    const content = message.content[0];
-    if (content.type !== "text") {
-      throw new Error("Unexpected response type");
+    const [claudeResult, gptResult, geminiResult] = await Promise.allSettled([
+      anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1024,
+        messages: [{ role: "user", content: prompt }],
+      }),
+
+      openai.responses.create({
+        model: "gpt-5.5",
+        input: prompt,
+      }),
+
+      google.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+      }),
+    ]);
+
+    let claude = null;
+    let gpt = null;
+    let gemini = null;
+
+    if (claudeResult.status === "fulfilled") {
+      const content = claudeResult.value.content[0];
+
+      if (content.type === "text") {
+        claude = normalizePrediction(
+          JSON.parse(cleanJson(content.text)),
+          fighterA,
+          fighterB,
+          oddsA,
+          oddsB
+        );
+      }
     }
 
-    const cleaned = content.text.replace(/```json\n?|\n?```/g, "").trim();
-    const analysis = JSON.parse(cleaned);
-    const predictedWinner =
-    analysis.predictedWinner ||
-    analysis.winner ||
-    analysis.predicted_winner ||
-    analysis.pick ||
-    (() => {
-      const impliedA = impliedProbabilityFromAmericanOdds(oddsA);
-      const impliedB = impliedProbabilityFromAmericanOdds(oddsB);
-    
-      if (impliedA === null && impliedB === null) return fighterA;
-      if (impliedA === null) return fighterB;
-      if (impliedB === null) return fighterA;
-    
-      return impliedA >= impliedB ? fighterA : fighterB;
-    })();
+    if (gptResult.status === "fulfilled") {
+      gpt = normalizePrediction(
+        JSON.parse(cleanJson(gptResult.value.output_text)),
+        fighterA,
+        fighterB,
+        oddsA,
+        oddsB
+      );
+    }
+
+    if (geminiResult.status === "fulfilled") {
+      gemini = normalizePrediction(
+        JSON.parse(cleanJson(geminiResult.value.text || "")),
+        fighterA,
+        fighterB,
+        oddsA,
+        oddsB
+      );
+    }
+
+    const validPredictions = [claude, gpt, gemini].filter(Boolean);
+
+    const winnerCounts = validPredictions.reduce((acc: any, prediction: any) => {
+      acc[prediction.predictedWinner] = (acc[prediction.predictedWinner] || 0) + 1;
+      return acc;
+    }, {});
+
+    const consensusWinner =
+      Object.entries(winnerCounts).sort((a: any, b: any) => b[1] - a[1])[0]?.[0] ||
+      claude?.predictedWinner ||
+      fighterA;
+
+    const consensusConfidence = validPredictions.length
+      ? Math.round(
+          validPredictions.reduce((sum: number, prediction: any) => sum + prediction.confidence, 0) /
+            validPredictions.length
+        )
+      : 50;
+
     return NextResponse.json({
-      claude: {
-        ...analysis,
-        predictedWinner,
-      },
-      gpt: null,
-      gemini: null,
+      claude,
+      gpt,
+      gemini,
       consensus: {
-        winner: predictedWinner,
-        confidence: analysis.confidence || 50,
+        winner: consensusWinner,
+        confidence: consensusConfidence,
       },
     });
   } catch (error) {
     console.error("Prediction API error:", error);
+
     return NextResponse.json(
       { error: "Failed to generate prediction" },
       { status: 500 }
