@@ -45,7 +45,16 @@ function formatAmericanOdds(odds: number | null | undefined) {
   if (odds === null || odds === undefined) return "—";
   return odds > 0 ? `+${odds}` : `${odds}`;
 }
+function metricNumber(value: string | number | undefined) {
+  if (value === undefined || value === null || value === "—") return 0;
+  return Number(String(value).replace("%", "")) || 0;
+}
 
+function metricWidth(value: string | number | undefined, max: number) {
+  const num = metricNumber(value);
+  if (!num) return 0;
+  return Math.min(Math.round((num / max) * 100), 100);
+}
 export default function Home() {
   const [odds, setOdds] = useState<any[]>([]);
   const [loadingOdds, setLoadingOdds] = useState(true);
@@ -157,14 +166,76 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
 
   const fighterAMetrics = fighterMetrics[selectedFight?.fighterA] || {};
 const fighterBMetrics = fighterMetrics[selectedFight?.fighterB] || {};
-
+const hasMetrics =
+  !!fighterMetrics[selectedFight?.fighterA] &&
+  !!fighterMetrics[selectedFight?.fighterB];
 const statRows = [
-  { name: "Significant Strikes / min", a: fighterAMetrics.slpm || "—", b: fighterBMetrics.slpm || "—", aWidth: 92, bWidth: 72, aAdv: true },
-  { name: "Strike Accuracy", a: fighterAMetrics.strAcc || "—", b: fighterBMetrics.strAcc || "—", aWidth: 96, bWidth: 76, aAdv: true },
-  { name: "Strike Defense", a: fighterAMetrics.strDef || "—", b: fighterBMetrics.strDef || "—", aWidth: 80, bWidth: 88, aAdv: false },
-  { name: "Takedown Accuracy", a: fighterAMetrics.tdAcc || "—", b: fighterBMetrics.tdAcc || "—", aWidth: 98, bWidth: 44, aAdv: true },
-  { name: "Takedown Defense", a: fighterAMetrics.tdDef || "—", b: fighterBMetrics.tdDef || "—", aWidth: 84, bWidth: 92, aAdv: false },
-  { name: "Submission Attempts / 15min", a: fighterAMetrics.subAvg || "—", b: fighterBMetrics.subAvg || "—", aWidth: 94, bWidth: 20, aAdv: true },
+  {
+    name: "Significant Strikes / min",
+    a: fighterAMetrics.slpm || "—",
+    b: fighterBMetrics.slpm || "—",
+    aWidth: metricWidth(fighterAMetrics.slpm, 8),
+    bWidth: metricWidth(fighterBMetrics.slpm, 8),
+    aAdv: metricNumber(fighterAMetrics.slpm) >= metricNumber(fighterBMetrics.slpm),
+  },
+  {
+    name: "Strike Accuracy",
+    a: fighterAMetrics.strAcc || "—",
+    b: fighterBMetrics.strAcc || "—",
+    aWidth: metricWidth(fighterAMetrics.strAcc, 100),
+    bWidth: metricWidth(fighterBMetrics.strAcc, 100),
+    aAdv: metricNumber(fighterAMetrics.strAcc) >= metricNumber(fighterBMetrics.strAcc),
+  },
+  {
+    name: "Strikes Absorbed / min",
+    a: fighterAMetrics.sapm || "—",
+    b: fighterBMetrics.sapm || "—",
+    aWidth: metricWidth(fighterAMetrics.sapm, 8),
+    bWidth: metricWidth(fighterBMetrics.sapm, 8),
+  
+    // LOWER is better
+    aAdv: metricNumber(fighterAMetrics.sapm) <= metricNumber(fighterBMetrics.sapm),
+  },
+  {
+    name: "Strike Defense",
+    a: fighterAMetrics.strDef || "—",
+    b: fighterBMetrics.strDef || "—",
+    aWidth: metricWidth(fighterAMetrics.strDef, 100),
+    bWidth: metricWidth(fighterBMetrics.strDef, 100),
+    aAdv: metricNumber(fighterAMetrics.strDef) >= metricNumber(fighterBMetrics.strDef),
+  },
+  {
+    name: "Takedowns / 15min",
+    a: fighterAMetrics.tdAvg || "—",
+    b: fighterBMetrics.tdAvg || "—",
+    aWidth: metricWidth(fighterAMetrics.tdAvg, 6),
+    bWidth: metricWidth(fighterBMetrics.tdAvg, 6),
+    aAdv: metricNumber(fighterAMetrics.tdAvg) >= metricNumber(fighterBMetrics.tdAvg),
+  },
+  {
+    name: "Takedown Accuracy",
+    a: fighterAMetrics.tdAcc || "—",
+    b: fighterBMetrics.tdAcc || "—",
+    aWidth: metricWidth(fighterAMetrics.tdAcc, 100),
+    bWidth: metricWidth(fighterBMetrics.tdAcc, 100),
+    aAdv: metricNumber(fighterAMetrics.tdAcc) >= metricNumber(fighterBMetrics.tdAcc),
+  },
+  {
+    name: "Takedown Defense",
+    a: fighterAMetrics.tdDef || "—",
+    b: fighterBMetrics.tdDef || "—",
+    aWidth: metricWidth(fighterAMetrics.tdDef, 100),
+    bWidth: metricWidth(fighterBMetrics.tdDef, 100),
+    aAdv: metricNumber(fighterAMetrics.tdDef) >= metricNumber(fighterBMetrics.tdDef),
+  },
+  {
+    name: "Submission Attempts / 15min",
+    a: fighterAMetrics.subAvg || "—",
+    b: fighterBMetrics.subAvg || "—",
+    aWidth: metricWidth(fighterAMetrics.subAvg, 3),
+    bWidth: metricWidth(fighterBMetrics.subAvg, 3),
+    aAdv: metricNumber(fighterAMetrics.subAvg) >= metricNumber(fighterBMetrics.subAvg),
+  },
 ];
   return (
     <main>
@@ -295,33 +366,36 @@ const statRows = [
               </div>
             </div>
             <div className="card-body">
-              <div className="stat-grid">
-                {[
-                  { name: "Significant Strikes / min", a: "4.12", b: "3.54", aWidth: 92, bWidth: 72, aAdv: true },
-                  { name: "Strike Accuracy", a: "58%", b: "48%", aWidth: 96, bWidth: 76, aAdv: true },
-                  { name: "Strike Defense", a: "67%", b: "71%", aWidth: 80, bWidth: 88, aAdv: false },
-                  { name: "Takedown Accuracy", a: "82%", b: "38%", aWidth: 98, bWidth: 44, aAdv: true },
-                  { name: "Takedown Defense", a: "74%", b: "78%", aWidth: 84, bWidth: 92, aAdv: false },
-                  { name: "Submission Attempts / 15min", a: "1.4", b: "0.4", aWidth: 94, bWidth: 20, aAdv: true },
-                ].map((stat, i) => (
-                  <div key={i} className="stat-row">
-                    <div className={`stat-val ${stat.aAdv ? "stat-val-a" : "stat-val-b"}`} style={{ textAlign: "left" }}>{stat.a}</div>
-                    <div className="stat-center">
-                      <div className="stat-name">{stat.name}</div>
-                      <div className="bar-track">
-                        <div className="bar-left">
-                          <div className={`bar-fill-a ${!stat.aAdv ? "dis" : ""}`} style={{ width: `${stat.aWidth}%` }}></div>
-                        </div>
-                        <div className="bar-right">
-                          <div className={`bar-fill-b ${!stat.aAdv ? "adv" : ""}`} style={{ width: `${stat.bWidth}%` }}></div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className={`stat-val ${!stat.aAdv ? "stat-val-a" : "stat-val-b"}`} style={{ textAlign: "right" }}>{stat.b}</div>
-                  </div>
-                ))}
+  {hasMetrics ? (
+    <div className="stat-grid">
+      {statRows.map((stat, i) => (
+        <div key={i} className="stat-row">
+          <div className={`stat-val ${stat.aAdv ? "stat-val-a" : "stat-val-b"}`} style={{ textAlign: "left" }}>
+            {stat.a}
+          </div>
+
+          <div className="stat-center">
+            <div className="stat-name">{stat.name}</div>
+            <div className="bar-track">
+              <div className="bar-left">
+                <div className={`bar-fill-a ${!stat.aAdv ? "dis" : ""}`} style={{ width: `${stat.aWidth}%` }}></div>
+              </div>
+              <div className="bar-right">
+                <div className={`bar-fill-b ${!stat.aAdv ? "adv" : ""}`} style={{ width: `${stat.bWidth}%` }}></div>
               </div>
             </div>
+          </div>
+
+          <div className={`stat-val ${!stat.aAdv ? "stat-val-a" : "stat-val-b"}`} style={{ textAlign: "right" }}>
+            {stat.b}
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div className="ai-loading">Advanced metrics not loaded for this matchup yet</div>
+  )}
+</div>
           </div>
 
          {/* AI Fight Breakdown */}
