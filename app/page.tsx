@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { mergeFightData } from "./lib/mergeFightData";
 import { fighterMetrics } from "./data/fighterMetrics";
 
@@ -66,9 +66,14 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
   const [activeTab, setActiveTab] = useState("main");
+  
+  const requestIdRef = useRef(0);
 
   async function fetchPrediction(fight: any) {
     if (!fight) return;
+  
+    const requestId = ++requestIdRef.current;
+  
     setLoadingPrediction(true);
     setPrediction(null);
     const fighterAMetrics = fighterMetrics[fight.fighterA] || {};
@@ -97,11 +102,18 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
         }),
       });
       const data = await res.json();
-      setPrediction(data);
+
+if (requestId !== requestIdRef.current) {
+  return;
+}
+
+setPrediction(data);
     } catch (error) {
       console.error("Failed to fetch prediction:", error);
     } finally {
-      setLoadingPrediction(false);
+      if (requestId === requestIdRef.current) {
+        setLoadingPrediction(false);
+      }
     }
   }
 
@@ -120,9 +132,11 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
         setUfcEvent(eventData);
         setMergedFights(merged);
         
-        const defaultFight = merged[0];
-        setSelectedFight(defaultFight);
-        fetchPrediction(defaultFight);
+        const mainCardFights = merged.slice(-5).reverse();
+const defaultFight = mainCardFights[0] || merged[0];
+
+setSelectedFight(defaultFight);
+fetchPrediction(defaultFight);
       } catch (error) {
         console.error("Failed to load odds:", error);
       } finally {
@@ -579,67 +593,119 @@ const statRows = [
             <div className="card-body">
               <div className="value-card">
                 <div className="value-row">
-                  <span className="value-label">{selectedFight?.fighterA?.split(" ").pop() || "Fighter A"} — Market Implied</span>
+                  <span className="value-label">{selectedFight?.fighterA?.split(" ").pop() || "Fighter A"} — Sportsbook Probability</span>
                   <span className="value-num">{homeImplied !== null ? `${homeImplied}%` : "—"}</span>
                 </div>
                 <div className="value-row">
-                  <span className="value-label">{selectedFight?.fighterB?.split(" ").pop() || "Fighter B"} — Market Implied</span>
+                  <span className="value-label">{selectedFight?.fighterB?.split(" ").pop() || "Fighter B"} — Sportsbook Probability</span>
                   <span className="value-num">{awayImplied !== null ? `${awayImplied}%` : "—"}</span>
                 </div>
                 <hr className="edge-divider" />
                 <div className="value-row">
-                  <span className="value-label">AI Win Probability</span>
+                  <span className="value-label">AI Confidence</span>
+                  <div className="text-sm text-neutral-400 mt-1">
+  {prediction?.consensus?.winner}
+</div>
                   <span className="value-num">{prediction?.consensus?.confidence ? `${prediction.consensus.confidence}%` : "Pending AI"}</span>
                 </div>
                 <div className="value-row">
-                  <span className="value-label">Value Edge</span>
-                  {prediction?.consensus?.confidence && homeImplied ? (
-  <span className={prediction.consensus.confidence > homeImplied ? "edge-pos" : "edge-neg"}>
-    {prediction.consensus.confidence > homeImplied
-      ? `+${prediction.consensus.confidence - homeImplied}% edge`
-      : `–${homeImplied - prediction.consensus.confidence}% no edge`}
-  </span>
-                  ) : (
-                    <span className="value-num">Pending AI</span>
-                  )}
+                <span className="value-label">Value Edge</span>
+{prediction?.consensus?.confidence && homeImplied ? (() => {
+  const edge = prediction.consensus.confidence - homeImplied;
+  const label =
+    edge >= 10 ? "Strong Value" :
+    edge >= 6 ? "Good Value" :
+    edge >= 3 ? "Small Value" :
+    edge > 0 ? "Tiny Edge" :
+    "No Value";
+
+  return (
+    <span className={edge > 0 ? "edge-pos" : "edge-neg"}>
+      {edge > 0 ? `+${edge}% • ${label}` : `${edge}% • ${label}`}
+    </span>
+  );
+})() : (
+  <span className="value-num">Pending AI</span>
+)}    
+                  
                 </div>
               </div>
             </div>
           </div>
 
           {/* Multi-Model Consensus */}
-          <div className="card">
-            <div className="card-header">
-              <span className="card-label">Multi-Model Consensus</span>
+<div className="card">
+  <div className="card-header">
+    <span className="card-label">AI Consensus</span>
+  </div>
+
+  <div className="card-body">
+    {(() => {
+      const models = [
+        { model: "Claude", color: "#CF9B60", prediction: prediction?.claude },
+        { model: "GPT-4", color: "#5DC98A", prediction: prediction?.gpt },
+        { model: "Gemini", color: "#5B9EE8", prediction: prediction?.gemini },
+      ];
+
+      const readyModels = models.filter((m) => m.prediction);
+      const consensusWinner = prediction?.consensus?.winner;
+
+      const agreeingModels = readyModels.filter(
+        (m) => m.prediction?.predictedWinner === consensusWinner
+      );
+
+      return (
+        <>
+          <div className="consensus-result">
+            <div>
+              <div className="cons-eyebrow">Consensus pick</div>
+              <div className="cons-pick">{consensusWinner || "Pending AI"}</div>
             </div>
-            <div className="card-body">
-              {[
-                { model: "Claude", color: "#CF9B60", pick: prediction?.claude?.predictedWinner || "Pending", conf: prediction?.claude ? `${prediction.claude.confidence}%` : "—" },
-                { model: "GPT-4", color: "#5DC98A", pick: prediction?.gpt?.predictedWinner || "Pending", conf: prediction?.gpt ? `${prediction.gpt.confidence}%` : "—" },
-                { model: "Gemini", color: "#5B9EE8", pick: prediction?.gemini?.predictedWinner || "Pending", conf: prediction?.gemini ? `${prediction.gemini.confidence}%` : "—" },
-              ].map((m, i) => (
-                <div key={i} className="model-row">
-                  <div className="model-name">
-                    <div className="model-dot" style={{ background: m.color }}></div>
-                    {m.model}
-                  </div>
-                  <div className="model-right">
-                    <div className="model-pick">{m.pick}</div>
-                    <div className="model-conf">{m.conf} confidence</div>
-                  </div>
-                </div>
-              ))}
-              <div className="consensus-result">
-                <div>
-                  <div className="cons-eyebrow">Consensus pick</div>
-                  <div className="cons-pick">{prediction?.consensus?.winner || "Pending AI"}</div>
-                </div>
-                <div className="cons-pct">
-  {prediction?.consensus?.confidence ? `${prediction.consensus.confidence}%` : "—"}
-</div>
-              </div>
+
+            <div className="cons-pct">
+              {prediction?.consensus?.confidence
+                ? `${prediction.consensus.confidence}%`
+                : "—"}
             </div>
           </div>
+
+          <div className="value-card" style={{ marginTop: "14px" }}>
+            <div className="value-row">
+              <span className="value-label">Model Agreement</span>
+              <span className="value-num">
+                {readyModels.length ? `${agreeingModels.length} / ${readyModels.length}` : "Pending"}
+              </span>
+            </div>
+          </div>
+
+          {models.map((m, i) => {
+            const pick = m.prediction?.predictedWinner || "Pending";
+            const agrees = pick === consensusWinner && pick !== "Pending";
+
+            return (
+              <div key={i} className="model-row">
+                <div className="model-name">
+                  <div className="model-dot" style={{ background: m.color }}></div>
+                  {m.model}
+                </div>
+
+                <div className="model-right">
+                  <div className="model-pick">
+                    {m.prediction ? (agrees ? "✓ " : "✕ ") : ""}
+                    {pick}
+                  </div>
+                  <div className="model-conf">
+                    {m.prediction ? `${m.prediction.confidence}% confidence` : "— confidence"}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </>
+      );
+    })()}
+  </div>
+</div>
 
           {/* Fight History */}
           <div className="card">

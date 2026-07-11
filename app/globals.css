@@ -179,8 +179,6 @@ body {
 
 /* AI LOADING */
 .ai-loading { font-size: 13px; color: rgba(255,255,255,0.28); padding: 20px 0; text-align: center; font-style: italic; }
-
-/* FIGHTER HEADSHOT */
 .fighter-headshot {
   width: 72px;
   height: 72px;
@@ -193,4 +191,344 @@ body {
 
 .fighter-headshot-b {
   margin-left: auto;
+}/* ========================================
+   RESPONSIVE — TABLET
+======================================== */
+
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .center,
+  .right-col {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .right-col {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+
+/* ========================================
+   RESPONSIVE — MOBILE
+======================================== */
+
+@media (max-width: 768px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  main {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Navigation */
+
+  .nav {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+
+  .nav-logo {
+    flex-shrink: 0;
+  }
+
+  .nav-logo-pickem {
+    font-size: 24px;
+  }
+
+  .nav-logo-labs {
+    font-size: 10px;
+  }
+
+  .nav-links {
+    margin-left: auto;
+    gap: 8px;
+  }
+
+  /* Hide unfinished navigation links on mobile */
+  .nav-link {
+    display: none;
+  }
+
+  .nav-badge {
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* Event information */
+
+  .event-bar {
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    align-items: start;
+    gap: 6px 10px;
+  }
+
+  .event-dot {
+    margin-top: 5px;
+  }
+
+  .event-eyebrow {
+    line-height: 1.4;
+  }
+
+  .event-name {
+    min-width: 0;
+    line-height: 1.35;
+  }
+
+  .event-date {
+    grid-column: 2 / -1;
+    margin-left: 0;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  /* Page title */
+
+  .page-header {
+    padding: 34px 16px 22px;
+  }
+
+  .page-title {
+    font-size: 30px;
+  }
+
+  .page-sub {
+    margin-top: 8px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Card tabs */
+
+  .tabs {
+    padding: 0 16px;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    flex: 0 0 auto;
+    padding: 16px 0;
+    margin-right: 28px;
+    font-size: 14px;
+  }
+
+  /* Main page layout */
+
+  .layout {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 24px 16px;
+    gap: 18px;
+  }
+
+  .layout > div,
+  .center,
+  .right-col {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .card {
+    width: 100%;
+    min-width: 0;
+    border-radius: 16px;
+  }
+
+  .card-header {
+    padding: 18px 16px;
+  }
+
+  .card-body {
+    padding: 18px 16px;
+  }
+
+  /* Fight list becomes a horizontal carousel */
+
+  .fight-list {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .fight-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .fight-item {
+    flex: 0 0 82%;
+    min-width: 260px;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 0;
+    scroll-snap-align: start;
+  }
+
+  /* Tale of the Tape */
+
+  .tot {
+    grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+  }
+
+  .fighter-a,
+  .fighter-b {
+    min-width: 0;
+  }
+
+  .fighter-name {
+    font-size: 20px;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+
+  .fighter-record {
+    font-size: 13px;
+  }
+
+  .fighter-meta {
+    margin-top: 14px;
+    gap: 6px;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .fighter-headshot {
+    width: 68px;
+    height: 68px;
+    margin-bottom: 12px;
+  }
+
+  .vs-col {
+    padding-top: 34px;
+  }
+
+  /* Statistical Edge */
+
+  .stat-row {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 8px;
+  }
+
+  .stat-val {
+    font-size: 13px;
+  }
+
+  .stat-name {
+    font-size: 11px;
+  }
+
+  /* Betting odds */
+
+  .odds-col-labels {
+    gap: 8px;
+  }
+
+  .odds-book {
+    padding: 14px 12px;
+  }
+
+  .book-name {
+    font-size: 13px;
+  }
+
+  .odds-pair {
+    gap: 18px;
+  }
+
+  /* Prediction summary */
+
+  .ai-block {
+    padding: 16px;
+  }
+
+  .pred-name {
+    overflow-wrap: anywhere;
+  }
+
+  /* Consensus rows */
+
+  .model-row {
+    padding: 16px 12px;
+    gap: 10px;
+  }
+
+  .model-right {
+    min-width: 0;
+  }
+
+  .model-pick {
+    overflow-wrap: anywhere;
+  }
+}
+
+
+/* ========================================
+   RESPONSIVE — SMALL PHONES
+======================================== */
+
+@media (max-width: 430px) {
+  .fight-item {
+    flex-basis: 88%;
+  }
+
+  .fighter-name {
+    font-size: 18px;
+  }
+
+  .fighter-headshot {
+    width: 60px;
+    height: 60px;
+  }
+
+  .fighter-meta {
+    font-size: 12px;
+  }
+
+  .stat-row {
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+  }
+
+  .stat-val {
+    font-size: 12px;
+  }
+
+  .consensus-result {
+    padding: 18px 14px;
+  }
+
+  .cons-pick {
+    font-size: 18px;
+  }
+
+  .cons-pct {
+    font-size: 34px;
+  }
 }

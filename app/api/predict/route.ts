@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { GoogleGenAI } from "@google/genai";
+import { createClient } from "@supabase/supabase-js";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -14,6 +15,20 @@ const openai = new OpenAI({
 const google = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SECRET_KEY!,
+  {
+    auth: {
+      persistSession: false,
+    },
+  }
+);
+
+function createFightKey(fighterA: string, fighterB: string) {
+  return [fighterA, fighterB].sort().join(" vs ");
+}
 
 function impliedProbabilityFromAmericanOdds(odds: number | null | undefined) {
   if (!odds) return null;
@@ -146,8 +161,25 @@ Return ONLY valid JSON in this format:
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { fighterA, fighterB, oddsA, oddsB } = body;
-    const prompt = buildPrompt(body);
+const { fighterA, fighterB, oddsA, oddsB } = body;
+
+const fightKey = createFightKey(fighterA, fighterB);
+
+const { data: cachedPrediction, error: cacheError } = await supabase
+  .from("fight_predictions")
+  .select("prediction")
+  .eq("fight_key", fightKey)
+  .maybeSingle();
+
+if (cacheError) {
+  console.error("Supabase cache read error:", cacheError);
+}
+
+if (cachedPrediction?.prediction) {
+  return NextResponse.json(cachedPrediction.prediction);
+}
+
+const prompt = buildPrompt(body);
 
     const [claudeResult, gptResult, geminiResult] = await Promise.allSettled([
       anthropic.messages.create({
@@ -164,6 +196,9 @@ export async function POST(request: Request) {
       google.models.generateContent({
         model: "gemini-2.5-flash",
         contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+        },
       }),
     ]);
 
@@ -196,13 +231,19 @@ export async function POST(request: Request) {
     }
 
     if (geminiResult.status === "fulfilled") {
-      gemini = normalizePrediction(
-        JSON.parse(cleanJson(geminiResult.value.text ?? "")),
-        fighterA,
-        fighterB,
-        oddsA,
-        oddsB
-      );
+      try {
+        gemini = normalizePrediction(
+          JSON.parse(cleanJson(geminiResult.value.text ?? "")),
+          fighterA,
+          fighterB,
+          oddsA,
+          oddsB
+        );
+      } catch (error) {
+        console.error("Gemini JSON parse error:", geminiResult.value.text);
+      }
+    } else {
+      console.error("Gemini API error:", geminiResult.reason);
     }
 
     const validPredictions = [claude, gpt, gemini].filter(Boolean);
@@ -224,15 +265,37 @@ export async function POST(request: Request) {
         )
       : 50;
 
-    return NextResponse.json({
-      claude,
-      gpt,
-      gemini,
-      consensus: {
-        winner: consensusWinner,
-        confidence: consensusConfidence,
-      },
-    });
+      const finalPrediction = {
+        claude,
+        gpt,
+        gemini,
+        consensus: {
+          winner: consensusWinner,
+          confidence: consensusConfidence,
+        },
+      };
+      
+      const { error: upsertError } = await supabase
+  .from("fight_predictions")
+  .upsert(
+    {
+      fight_key: fightKey,
+      fighter_a: fighterA,
+      fighter_b: fighterB,
+      prediction: finalPrediction,
+    },
+    {
+      onConflict: "fight_key",
+    }
+  );
+      
+      if (upsertError) {
+        console.error("Supabase prediction save error:", upsertError);
+      } else {
+        console.log("Saved prediction to Supabase:", fightKey);
+      }
+      
+      return NextResponse.json(finalPrediction);
   } catch (error) {
     console.error("Prediction API error:", error);
 
