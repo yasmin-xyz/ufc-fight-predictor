@@ -46,11 +46,27 @@ body {
 
 /* TABS */
 .tabs { display: flex; border-bottom: 0.5px solid rgba(255,255,255,0.07); padding: 0 40px; margin-top: 20px; }
-.tab { font-size: 13px; padding: 10px 0; margin-right: 32px; color: rgba(255,255,255,0.3); border-bottom: 1.5px solid transparent; cursor: pointer; transition: color 0.15s; }
+.tab {
+  padding: 10px 0;
+  margin-right: 32px;
+  border: 0;
+  border-bottom: 1.5px solid transparent;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
 .tab.active { color: #E8E8EC; border-bottom-color: #6C6FE8; }
 
 /* LAYOUT */
-.layout { display: grid; grid-template-columns: 240px 1fr 310px; gap: 18px; padding: 22px 40px 40px; }
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 18px;
+  padding: 22px 40px 40px;
+}
 
 /* CARD */
 .card { background: #16161A; border: 0.5px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; transition: border-color 0.25s ease, box-shadow 0.25s ease; }
@@ -61,8 +77,6 @@ body {
 .card-body { padding: 18px; }
 
 /* FIGHT LIST */
-.fight-list { display: flex; flex-direction: column; }
-.fight-item { padding: 12px 18px; border-bottom: 0.5px solid rgba(255,255,255,0.05); cursor: pointer; transition: background 0.15s, border-left-color 0.15s; border-left: 2px solid transparent; }
 .fight-item:last-child { border-bottom: none; }
 .fight-item:hover { background: rgba(108,111,232,0.04); border-left-color: rgba(108,111,232,0.4); }
 .fight-item.active { background: rgba(108,111,232,0.07); border-left-color: #6C6FE8; padding-left: 16px; }
@@ -374,27 +388,6 @@ body {
     padding: 18px 16px;
   }
 
-  /* Fight list becomes a horizontal carousel */
-
-  .fight-list {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scrollbar-width: none;
-  }
-
-  .fight-list::-webkit-scrollbar {
-    display: none;
-  }
-
-  .fight-item {
-    flex: 0 0 82%;
-    min-width: 260px;
-    border-right: 1px solid rgba(255, 255, 255, 0.06);
-    border-bottom: 0;
-    scroll-snap-align: start;
-  }
-
   /* Tale of the Tape */
 
   .tot {
@@ -500,10 +493,6 @@ body {
 ======================================== */
 
 @media (max-width: 430px) {
-  .fight-item {
-    flex-basis: 88%;
-  }
-
   .fighter-name {
     font-size: 18px;
   }
@@ -534,7 +523,7 @@ body {
   }
 
   .cons-pct {
-    font-size: 34px;
+    font-size: 18px;
   }
 }
 /* Compact prediction summary */
@@ -611,67 +600,11 @@ body {
   }
 }
 
-  .prediction-details-grid .value-card:last-child {
-    grid-column: 1 / -1;
+  @media (max-width: 768px) {
+    .layout {
+      padding-top: 16px;
+    }
   }
-
-.mobile-fight-selector {
-  display: none;
-}
-
-@media (max-width: 768px) {
-  .fight-sidebar {
-    display: none;
-  }
-
-  .mobile-fight-selector {
-    display: block;
-    padding: 20px 16px 4px;
-  }
-
-  .mobile-fight-selector label {
-    display: block;
-    margin-bottom: 8px;
-    color: rgba(255, 255, 255, 0.4);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-  }
-
-  .mobile-select-wrap {
-    position: relative;
-  }
-  
-  .mobile-select-wrap::after {
-    content: "⌄";
-    position: absolute;
-    right: 18px;
-    top: 50%;
-    transform: translateY(-55%);
-    color: rgba(255, 255, 255, 0.72);
-    font-size: 20px;
-    pointer-events: none;
-  }
-  
-  .mobile-fight-selector select {
-    width: 100%;
-    min-height: 52px;
-    padding: 0 54px 0 16px;
-    border: 1px solid rgba(108, 111, 232, 0.35);
-    border-radius: 14px;
-    background: #17171d;
-    color: rgba(255, 255, 255, 0.92);
-    font: inherit;
-    font-size: 14px;
-    appearance: none;
-    -webkit-appearance: none;
-  }
-
-  .layout {
-    padding-top: 16px;
-  }
-}
 .page-sub {
   display: flex;
   flex-direction: column;
@@ -849,5 +782,81 @@ body {
   .value-edge-row .edge-pos,
   .value-edge-row .edge-neg {
     font-size: 18px;
+  }
+}
+/* Fight selector — desktop and mobile */
+
+.fight-selector {
+  padding: 18px 40px 0;
+}
+
+.fight-selector-inner {
+  width: min(680px, 100%);
+}
+
+.fight-selector label {
+  display: block;
+  margin-bottom: 8px;
+  color: #a7aaff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.fight-select-wrap {
+  position: relative;
+}
+
+.fight-select-wrap::after {
+  content: "";
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid rgba(255, 255, 255, 0.62);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.62);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+.fight-selector select {
+  width: 100%;
+  min-height: 54px;
+  padding: 0 52px 0 16px;
+  border: 1px solid rgba(108, 111, 232, 0.3);
+  border-radius: 12px;
+  outline: none;
+  background: #16161a;
+  color: rgba(255, 255, 255, 0.92);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.fight-selector select:hover {
+  border-color: rgba(108, 111, 232, 0.55);
+}
+
+.fight-selector select:focus {
+  border-color: #6c6fe8;
+  box-shadow: 0 0 0 3px rgba(108, 111, 232, 0.1);
+}
+
+@media (max-width: 768px) {
+  .fight-selector {
+    padding: 18px 16px 0;
+  }
+
+  .fight-selector-inner {
+    width: 100%;
+  }
+
+  .fight-selector select {
+    min-height: 52px;
+    font-size: 14px;
   }
 }

@@ -203,6 +203,29 @@ fetchPrediction(defaultFight);
       ? prelimFights
       : earlyPrelimFights;
 
+      function handleTabChange(tab: "main" | "prelims" | "early") {
+        setActiveTab(tab);
+      
+        const nextFights =
+          tab === "main"
+            ? mainCardFights
+            : tab === "prelims"
+            ? prelimFights
+            : earlyPrelimFights;
+      
+        const firstFight = nextFights[0];
+      
+        if (!firstFight) {
+          setSelectedFight(null);
+          setPrediction(null);
+          return;
+        }
+      
+        setSelectedFight(firstFight);
+        setPrediction(null);
+        fetchPrediction(firstFight);
+      }
+
   const firstBookmaker = selectedFight?.odds?.bookmakers?.[0];  
   const outcomes = firstBookmaker?.markets?.[0]?.outcomes || [];
   const homeOdds = outcomes.find((o: any) => o.name === selectedFight?.fighterA);
@@ -320,95 +343,69 @@ const statRows = [
       </div>
 
       <div className="tabs">
-  <div
+  <button
+    type="button"
     className={`tab ${activeTab === "main" ? "active" : ""}`}
-    onClick={() => setActiveTab("main")}
+    onClick={() => handleTabChange("main")}
   >
     MAIN CARD
-  </div>
+  </button>
 
-  <div
+  <button
+    type="button"
     className={`tab ${activeTab === "prelims" ? "active" : ""}`}
-    onClick={() => setActiveTab("prelims")}
+    onClick={() => handleTabChange("prelims")}
   >
     PRELIMS
-  </div>
+  </button>
 
-  <div
+  <button
+    type="button"
     className={`tab ${activeTab === "early" ? "active" : ""}`}
-    onClick={() => setActiveTab("early")}
+    onClick={() => handleTabChange("early")}
   >
     EARLY PRELIMS
+  </button>
+</div>
+<div className="fight-selector">
+  <div className="fight-selector-inner">
+    <label htmlFor="fight-select">
+      {activeTab === "main"
+        ? "Main Card"
+        : activeTab === "prelims"
+        ? "Prelims"
+        : "Early Prelims"}
+    </label>
+
+    <div className="fight-select-wrap">
+      <select
+        id="fight-select"
+        value={selectedFight?.id ? String(selectedFight.id) : ""}
+        onChange={(event) => {
+          const nextFight = visibleFights.find(
+            (fight) => String(fight.id) === event.target.value
+          );
+
+          if (!nextFight) return;
+
+          setSelectedFight(nextFight);
+          setPrediction(null);
+          fetchPrediction(nextFight);
+        }}
+      >
+        {visibleFights.map((fight) => (
+          <option key={fight.id} value={String(fight.id)}>
+            {fight.fighterA} vs. {fight.fighterB}
+          </option>
+        ))}
+      </select>
+    </div>
   </div>
-</div>
-<div className="mobile-fight-selector">
-  <label htmlFor="mobile-fight-select">Select fight</label>
-
-  <div className="mobile-select-wrap">
-  <select
-    id="mobile-fight-select"
-    value={selectedFight?.id || ""}
-    onChange={(event) => {
-      const nextFight = visibleFights.find(
-        (fight) => String(fight.id) === event.target.value
-      );
-
-      if (!nextFight) return;
-
-      setSelectedFight(nextFight);
-      setPrediction(null);
-      fetchPrediction(nextFight);
-    }}
-  >
-    {visibleFights.map((fight) => (
-      <option key={fight.id} value={String(fight.id)}>
-        {fight.fighterA} vs. {fight.fighterB}
-      </option>
-    ))}
-  </select>
-</div>
 </div>
 
       <div className="layout">
 
-        {/* LEFT — Fight List */}
-<div className="fight-sidebar">
-          <div className="card">
-            <div className="card-header">
-            <span className="card-label">
-  {activeTab === "main" ? "Main Card" : activeTab === "prelims" ? "Prelims" : "Early Prelims"}
-</span>
-<span className="card-meta">{visibleFights.length} fights</span>
-            </div>
-            <div className="fight-list">
-            {visibleFights.map((fight, i) => (
-                <div
-                  key={fight.id || i}
-                  onClick={() => {
-                    setSelectedFight(fight);
-                    setPrediction(null);
-                    fetchPrediction(fight);
-                  }}
-                  className={`fight-item${selectedFight?.id === fight.id ? " active" : ""}`}
-                >
-                  <div className="fight-names">{fight.fighterA} vs. {fight.fighterB}</div>
-                  <div className="fight-meta">
-                    <span className="fight-wc">MMA</span>
-                  </div>
-                  <div className="fight-pick-row">
-                  <span className="fight-pick-name">
-  {fight.odds?.bookmakers?.length ? "Odds available" : "No odds yet"}
-</span> 
-                    <span className="fight-pick-pct">
-  {fight.odds?.bookmakers?.length ? `${fight.odds.bookmakers.length} books` : "No odds yet"}
-</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
+        
         {/* CENTER — Analysis */}
         <div className="center">
 
