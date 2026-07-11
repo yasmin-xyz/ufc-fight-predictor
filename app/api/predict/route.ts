@@ -26,8 +26,11 @@ const supabase = createClient(
   }
 );
 
+const PREDICTION_VERSION = "v2";
+
 function createFightKey(fighterA: string, fighterB: string) {
-  return [fighterA, fighterB].sort().join(" vs ");
+  const matchup = [fighterA, fighterB].sort().join(" vs ");
+  return `${matchup}::${PREDICTION_VERSION}`;
 }
 
 function impliedProbabilityFromAmericanOdds(odds: number | null | undefined) {
@@ -147,15 +150,16 @@ Return ONLY valid JSON in this format:
   "method": "",
   "round": "",
   "bettingLean": "",
-  "keyAdvantages": "",
-  "biggestRisk": "",
-  "fightScript": "",
+  "keyAdvantages": "Maximum 2 concise sentences. Mention only the most important statistical or stylistic advantages.",
+  "biggestRisk": "Maximum 1 concise sentence.",
+  "fightScript": "Maximum 2 concise sentences describing the most likely fight flow.",
   "whyWrong": [
-    "",
-    "",
-    ""
+    "One concise reason",
+    "One concise reason"
   ]
-}`;
+}
+
+Keep the entire response concise. Avoid repeating the same point across multiple fields.`;
 }
 
 export async function POST(request: Request) {
@@ -184,7 +188,7 @@ const prompt = buildPrompt(body);
     const [claudeResult, gptResult, geminiResult] = await Promise.allSettled([
       anthropic.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 1024,
+        max_tokens: 700,
         messages: [{ role: "user", content: prompt }],
       }),
 

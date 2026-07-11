@@ -55,6 +55,19 @@ function metricWidth(value: string | number | undefined, max: number) {
   if (!num) return 0;
   return Math.min(Math.round((num / max) * 100), 100);
 }
+function formatPredictedRound(
+  method: string | undefined,
+  round: string | number | undefined
+) {
+  if (!method) return "—";
+
+  if (method.toLowerCase().includes("decision")) {
+    return "To go the distance";
+  }
+
+  return round || "—";
+}
+
 export default function Home() {
   const [odds, setOdds] = useState<any[]>([]);
   const [loadingOdds, setLoadingOdds] = useState(true);
@@ -298,7 +311,12 @@ const statRows = [
 
       <div className="page-header">
         <div className="page-title">Fight Analysis</div>
-        <div className="page-sub">AI-powered breakdowns · {ufcEvent?.eventName || "Loading event..."} main card</div>
+        <div className="page-sub">
+  <span className="page-sub-kicker">AI-powered breakdowns</span>
+  <span className="page-sub-event">
+    {ufcEvent?.eventName || "Loading event..."}
+  </span>
+</div>
       </div>
 
       <div className="tabs">
@@ -323,11 +341,38 @@ const statRows = [
     EARLY PRELIMS
   </div>
 </div>
+<div className="mobile-fight-selector">
+  <label htmlFor="mobile-fight-select">Select fight</label>
+
+  <div className="mobile-select-wrap">
+  <select
+    id="mobile-fight-select"
+    value={selectedFight?.id || ""}
+    onChange={(event) => {
+      const nextFight = visibleFights.find(
+        (fight) => String(fight.id) === event.target.value
+      );
+
+      if (!nextFight) return;
+
+      setSelectedFight(nextFight);
+      setPrediction(null);
+      fetchPrediction(nextFight);
+    }}
+  >
+    {visibleFights.map((fight) => (
+      <option key={fight.id} value={String(fight.id)}>
+        {fight.fighterA} vs. {fight.fighterB}
+      </option>
+    ))}
+  </select>
+</div>
+</div>
 
       <div className="layout">
 
         {/* LEFT — Fight List */}
-        <div>
+<div className="fight-sidebar">
           <div className="card">
             <div className="card-header">
             <span className="card-label">
@@ -469,7 +514,7 @@ const statRows = [
     ) : prediction ? (
       <div className="ai-section">
         <div
-          className="ai-block"
+          className="ai-block prediction-summary"
           style={{
             background: "linear-gradient(135deg, rgba(108,111,232,0.16), rgba(255,255,255,0.03))",
             border: "1px solid rgba(108,111,232,0.28)",
@@ -480,31 +525,36 @@ const statRows = [
           <div style={{ display: "flex", justifyContent: "space-between", gap: "24px" }}>
             <div>
               <div className="cons-eyebrow">Winner</div>
-              <div className="pred-name" style={{ fontSize: "22px" }}>
+              <div className="pred-name">
                 {prediction.claude?.predictedWinner || "—"}
               </div>
             </div>
 
             <div style={{ textAlign: "right" }}>
               <div className="cons-eyebrow">Confidence</div>
-              <div className="pred-name" style={{ fontSize: "22px" }}>
+              <div className="pred-name">
                 {prediction.claude?.confidence || "—"}%
               </div>
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginTop: "18px" }}>
-            <div className="value-card">
+          <div className="prediction-details-grid">
+          <div className="value-card prediction-method">
               <div className="cons-eyebrow">Method</div>
               <div className="pred-name">{prediction.claude?.method || "—"}</div>
             </div>
 
-            <div className="value-card">
+            <div className="value-card prediction-round">
               <div className="cons-eyebrow">Round</div>
-              <div className="pred-name">{prediction.claude?.round || "—"}</div>
+              <div className="pred-name">
+  {formatPredictedRound(
+    prediction?.claude?.method,
+    prediction?.claude?.round
+  )}
+</div>
             </div>
 
-            <div className="value-card">
+            <div className="value-card prediction-lean">
               <div className="cons-eyebrow">Betting Lean</div>
               <div className="pred-name">{prediction.claude?.bettingLean || "—"}</div>
             </div>
@@ -591,45 +641,78 @@ const statRows = [
               <span className="card-label">Value Analysis</span>
             </div>
             <div className="card-body">
-              <div className="value-card">
-                <div className="value-row">
-                  <span className="value-label">{selectedFight?.fighterA?.split(" ").pop() || "Fighter A"} — Sportsbook Probability</span>
-                  <span className="value-num">{homeImplied !== null ? `${homeImplied}%` : "—"}</span>
-                </div>
-                <div className="value-row">
-                  <span className="value-label">{selectedFight?.fighterB?.split(" ").pop() || "Fighter B"} — Sportsbook Probability</span>
-                  <span className="value-num">{awayImplied !== null ? `${awayImplied}%` : "—"}</span>
-                </div>
-                <hr className="edge-divider" />
-                <div className="value-row">
-                  <span className="value-label">AI Confidence</span>
-                  <div className="text-sm text-neutral-400 mt-1">
-  {prediction?.consensus?.winner}
-</div>
-                  <span className="value-num">{prediction?.consensus?.confidence ? `${prediction.consensus.confidence}%` : "Pending AI"}</span>
-                </div>
-                <div className="value-row">
-                <span className="value-label">Value Edge</span>
-{prediction?.consensus?.confidence && homeImplied ? (() => {
-  const edge = prediction.consensus.confidence - homeImplied;
-  const label =
-    edge >= 10 ? "Strong Value" :
-    edge >= 6 ? "Good Value" :
-    edge >= 3 ? "Small Value" :
-    edge > 0 ? "Tiny Edge" :
-    "No Value";
+            <div className="value-analysis">
+  <div className="value-section">
+    <div className="value-section-title">Sportsbook Probability</div>
 
-  return (
-    <span className={edge > 0 ? "edge-pos" : "edge-neg"}>
-      {edge > 0 ? `+${edge}% • ${label}` : `${edge}% • ${label}`}
-    </span>
-  );
-})() : (
-  <span className="value-num">Pending AI</span>
-)}    
-                  
-                </div>
-              </div>
+    <div className="value-analysis-row">
+      <span className="value-fighter">
+        {selectedFight?.fighterA?.split(" ").slice(-1)[0] || "Fighter A"}
+      </span>
+      <span className="value-percentage">
+        {homeImplied ? `${homeImplied}%` : "—"}
+      </span>
+    </div>
+
+    <div className="value-analysis-row">
+      <span className="value-fighter">
+        {selectedFight?.fighterB?.split(" ").slice(-1)[0] || "Fighter B"}
+      </span>
+      <span className="value-percentage">
+        {awayImplied ? `${awayImplied}%` : "—"}
+      </span>
+    </div>
+  </div>
+
+  <div className="value-divider" />
+
+  <div className="value-section">
+    <div className="value-section-title">AI Estimated Win Probability</div>
+
+    <div className="value-analysis-row value-ai-row">
+      <span className="value-fighter">
+        {prediction?.consensus?.winner || "Pending AI"}
+      </span>
+      <span className="value-percentage">
+        {prediction?.consensus?.confidence
+          ? `${prediction.consensus.confidence}%`
+          : "—"}
+      </span>
+    </div>
+  </div>
+
+  <div className="value-analysis-row value-edge-row">
+    <div>
+      <div className="value-section-title">Value Edge</div>
+      <div className="value-edge-label">
+        {prediction?.consensus?.confidence && homeImplied
+          ? (() => {
+              const edge = prediction.consensus.confidence - homeImplied;
+
+              if (edge >= 10) return "Strong Value";
+              if (edge >= 6) return "Good Value";
+              if (edge >= 3) return "Small Value";
+              if (edge > 0) return "Tiny Edge";
+
+              return "No Value";
+            })()
+          : "Pending AI"}
+      </div>
+    </div>
+
+    {prediction?.consensus?.confidence && homeImplied ? (() => {
+      const edge = prediction.consensus.confidence - homeImplied;
+
+      return (
+        <span className={edge > 0 ? "edge-pos" : "edge-neg"}>
+          {edge > 0 ? `+${edge}%` : `${edge}%`}
+        </span>
+      );
+    })() : (
+      <span className="value-percentage">—</span>
+    )}
+  </div>
+</div>
             </div>
           </div>
 

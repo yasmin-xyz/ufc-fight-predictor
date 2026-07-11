@@ -156,7 +156,12 @@ body {
 .consensus-result { margin-top: 4px; padding: 13px 15px; background: rgba(108,111,232,0.07); border: 0.5px solid rgba(108,111,232,0.16); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; }
 .cons-eyebrow { font-size: 10px; color: rgba(255,255,255,0.24); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 4px; }
 .cons-pick { font-size: 16px; font-weight: 600; color: #E8E8EC; }
-.cons-pct { font-size: 26px; font-weight: 700; color: #6C6FE8; letter-spacing: -0.02em; }
+.cons-pct {
+  font-size: 20px;
+  font-weight: 700;
+  color: #6C6FE8;
+  letter-spacing: -0.01em;
+}
 
 /* FIGHT HISTORY */
 .fighter-toggle { display: flex; background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 3px; margin-bottom: 14px; }
@@ -530,5 +535,319 @@ body {
 
   .cons-pct {
     font-size: 34px;
+  }
+}
+/* Compact prediction summary */
+
+.ai-block .pred-name {
+  font-size: 16px;
+  line-height: 1.35;
+  font-weight: 650;
+}
+
+.ai-block .cons-eyebrow {
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.13em;
+}
+
+@media (max-width: 768px) {
+  .ai-section {
+    gap: 12px;
+  }
+
+  .ai-block {
+    padding: 16px;
+  }
+
+  .ai-block-text {
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .ai-block .pred-name {
+    font-size: 15px !important;
+    line-height: 1.4;
+  }
+}
+.prediction-details-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.prediction-method {
+  grid-column: span 3;
+}
+
+.prediction-round {
+  grid-column: span 4;
+}
+
+.prediction-lean {
+  grid-column: 1 / -1;
+}
+
+.prediction-lean .pred-name {
+  max-width: 100%;
+  font-size: 14px !important;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .prediction-details-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .prediction-method,
+  .prediction-round {
+    grid-column: span 1;
+  }
+
+  .prediction-lean {
+    grid-column: 1 / -1;
+  }
+}
+
+  .prediction-details-grid .value-card:last-child {
+    grid-column: 1 / -1;
+  }
+
+.mobile-fight-selector {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .fight-sidebar {
+    display: none;
+  }
+
+  .mobile-fight-selector {
+    display: block;
+    padding: 20px 16px 4px;
+  }
+
+  .mobile-fight-selector label {
+    display: block;
+    margin-bottom: 8px;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .mobile-select-wrap {
+    position: relative;
+  }
+  
+  .mobile-select-wrap::after {
+    content: "⌄";
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-55%);
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 20px;
+    pointer-events: none;
+  }
+  
+  .mobile-fight-selector select {
+    width: 100%;
+    min-height: 52px;
+    padding: 0 54px 0 16px;
+    border: 1px solid rgba(108, 111, 232, 0.35);
+    border-radius: 14px;
+    background: #17171d;
+    color: rgba(255, 255, 255, 0.92);
+    font: inherit;
+    font-size: 14px;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .layout {
+    padding-top: 16px;
+  }
+}
+.page-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.page-sub-kicker {
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 14px;
+}
+
+.page-sub-event {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .page-sub-kicker {
+    font-size: 13px;
+  }
+
+  .page-sub-event {
+    font-size: 15px;
+    line-height: 1.45;
+  }
+}
+.card-label {
+  color: #A7AAFF;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.card-header {
+  min-height: 58px;
+}
+
+@media (max-width: 768px) {
+  .card-label {
+    font-size: 11px;
+  }
+
+  .card-header {
+    min-height: 54px;
+  }
+}
+.prediction-summary .ai-block-label {
+  color: #8d8fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  margin-bottom: 18px;
+}
+
+.prediction-summary .cons-eyebrow {
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.prediction-summary .pred-name {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px !important;
+  line-height: 1.4;
+  font-weight: 650;
+}
+.prediction-details-grid .value-card {
+  min-width: 0;
+}
+
+.prediction-details-grid .pred-name {
+  font-size: 15px !important;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 768px) {
+  .prediction-summary .pred-name {
+    font-size: 15px !important;
+  }
+
+  .prediction-details-grid .pred-name {
+    font-size: 14px !important;
+  }
+}
+.value-analysis {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.value-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.value-section-title {
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.value-analysis-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.value-fighter {
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.value-percentage {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.value-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.value-ai-row {
+  padding: 14px;
+  border: 1px solid rgba(108, 111, 232, 0.22);
+  border-radius: 12px;
+  background: rgba(108, 111, 232, 0.07);
+}
+
+.value-ai-row .value-fighter {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 650;
+}
+
+.value-edge-row {
+  padding-top: 2px;
+}
+
+.value-edge-label {
+  margin-top: 5px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.value-edge-row .edge-pos,
+.value-edge-row .edge-neg {
+  flex-shrink: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .value-fighter {
+    font-size: 13px;
+  }
+
+  .value-percentage {
+    font-size: 16px;
+  }
+
+  .value-edge-row .edge-pos,
+  .value-edge-row .edge-neg {
+    font-size: 18px;
   }
 }
