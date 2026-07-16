@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { mergeFightData } from "./lib/mergeFightData";
-import { fighterMetrics } from "./data/fighterMetrics";
 
 function fightName(fight: any) {
   return `${fight.home_team} vs. ${fight.away_team}`;
@@ -79,8 +78,18 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
   const [activeTab, setActiveTab] = useState("main");
-  
+
+  const [fighterAMetrics, setFighterAMetrics] = useState<any>({});
+  const [fighterBMetrics, setFighterBMetrics] = useState<any>({});
+  const [metricsStatus, setMetricsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+
+  const [fighterAHistory, setFighterAHistory] = useState<any[]>([]);
+  const [fighterBHistory, setFighterBHistory] = useState<any[]>([]);
+  const [historyStatus, setHistoryStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [historyToggle, setHistoryToggle] = useState<"A" | "B">("A");
+
   const requestIdRef = useRef(0);
+  const metricsRequestIdRef = useRef(0);
 
   async function fetchPrediction(fight: any) {
     if (!fight) return;
@@ -89,8 +98,6 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
   
     setLoadingPrediction(true);
     setPrediction(null);
-    const fighterAMetrics = fighterMetrics[fight.fighterA] || {};
-    const fighterBMetrics = fighterMetrics[fight.fighterB] || {};
 
     const bookmaker = fight.odds?.bookmakers?.[0];
     const outcomes = bookmaker?.markets?.[0]?.outcomes || [];
@@ -180,6 +187,58 @@ fetchPrediction(defaultFight);
   
     loadFighters();
   }, [selectedFight]);
+
+  useEffect(() => {
+    if (!selectedFight?.fighterA || !selectedFight?.fighterB) return;
+
+    const requestId = ++metricsRequestIdRef.current;
+
+    setHistoryToggle("A");
+
+    async function loadMetricsAndHistory() {
+      setMetricsStatus("loading");
+      setHistoryStatus("loading");
+
+      try {
+        const res = await fetch("/api/fighter-metrics", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            names: [selectedFight.fighterA, selectedFight.fighterB],
+          }),
+        });
+
+        if (!res.ok) throw new Error(`Request failed (${res.status})`);
+
+        const data = await res.json();
+
+        if (requestId !== metricsRequestIdRef.current) return;
+
+        setFighterAMetrics(data.metrics?.[selectedFight.fighterA] || {});
+        setFighterBMetrics(data.metrics?.[selectedFight.fighterB] || {});
+        setMetricsStatus("ready");
+
+        setFighterAHistory(data.history?.[selectedFight.fighterA] || []);
+        setFighterBHistory(data.history?.[selectedFight.fighterB] || []);
+        setHistoryStatus("ready");
+      } catch (error) {
+        console.error("Failed loading fighter metrics/history", error);
+
+        if (requestId !== metricsRequestIdRef.current) return;
+
+        setFighterAMetrics({});
+        setFighterBMetrics({});
+        setMetricsStatus("error");
+
+        setFighterAHistory([]);
+        setFighterBHistory([]);
+        setHistoryStatus("error");
+      }
+    }
+
+    loadMetricsAndHistory();
+  }, [selectedFight]);
+
   const ufc329Fights = [
     "Conor McGregor vs. Max Holloway",
   ];
@@ -233,11 +292,10 @@ fetchPrediction(defaultFight);
   const homeImplied = impliedProbability(homeOdds?.price);
   const awayImplied = impliedProbability(awayOdds?.price);
 
-  const fighterAMetrics = fighterMetrics[selectedFight?.fighterA] || {};
-const fighterBMetrics = fighterMetrics[selectedFight?.fighterB] || {};
-const hasMetrics =
-  !!fighterMetrics[selectedFight?.fighterA] &&
-  !!fighterMetrics[selectedFight?.fighterB];
+  const hasMetrics =
+  metricsStatus === "ready" &&
+  !!fighterAMetrics?.slpm &&
+  !!fighterBMetrics?.slpm;
 const statRows = [
   {
     name: "Significant Strikes / min",
@@ -794,10 +852,64 @@ const statRows = [
             </div>
             <div className="card-body">
               <div className="fighter-toggle">
-                <div className="toggle-btn toggle-active">{selectedFight?.fighterA?.split(" ").pop() || "Fighter A"}</div>
-                <div className="toggle-btn">{selectedFight?.fighterB?.split(" ").pop() || "Fighter B"}</div>
+                <div
+                  className={`toggle-btn ${historyToggle === "A" ? "toggle-active" : ""}`}
+                  onClick={() => setHistoryToggle("A")}
+                >
+                  {selectedFight?.fighterA?.split(" ").pop() || "Fighter A"}
+                </div>
+                <div
+                  className={`toggle-btn ${historyToggle === "B" ? "toggle-active" : ""}`}
+                  onClick={() => setHistoryToggle("B")}
+                >
+                  {selectedFight?.fighterB?.split(" ").pop() || "Fighter B"}
+                </div>
               </div>
-              <div className="ai-loading">Fight history coming soon</div>
+
+              {historyStatus === "loading" ? (
+                <div className="ai-loading">Loading fight history...</div>
+              ) : historyStatus === "error" ? (
+                <div className="ai-loading">Fight history unavailable</div>
+              ) : (() => {
+                const activeHistory = historyToggle === "A" ? fighterAHistory : fighterBHistory;
+
+                if (activeHistory.length === 0) {
+                  return <div className="ai-loading">No fight history available</div>;
+                }
+
+                return activeHistory.map((fight: any, i: number) => (
+                  <div key={i} className="history-fight">
+                    <div className="history-header">
+                      <span className="history-opponent">{fight.opponent || "Unknown opponent"}</span>
+                      <span className={`history-result ${fight.result === "win" ? "result-w" : "result-l"}`}>
+                        {fight.result === "win" ? "W" : "L"}
+                      </span>
+                    </div>
+                    <div className="history-meta">
+                      {fight.event || "Unknown event"}
+                      {fight.date ? ` · ${new Date(fight.date).toLocaleDateString()}` : ""}
+                    </div>
+                    <div className="history-stats">
+                      <div className="hstat">
+                        <div className="hstat-label">Method</div>
+                        <div className="hstat-val">{fight.method || "—"}</div>
+                      </div>
+                      <div className="hstat">
+                        <div className="hstat-label">Round</div>
+                        <div className="hstat-val">{fight.round || "—"}</div>
+                      </div>
+                      <div className="hstat">
+                        <div className="hstat-label">Time</div>
+                        <div className="hstat-val">{fight.time || "—"}</div>
+                      </div>
+                    </div>
+                  </div>
+                ));
+              })()}
+
+              <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.22)", textAlign: "center", marginTop: "12px" }}>
+                Fighter statistics and history via Cito API.
+              </div>
             </div>
           </div>
 
