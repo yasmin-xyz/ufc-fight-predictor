@@ -72,7 +72,7 @@ function rowToMapped(row: FighterMetricsRow): MappedMetrics {
 export type MetricsPeekResult = {
   normalizedName: string;
   providerSlug: string | null;
-  status: "cached" | "missing";
+  status: "cached" | "missing" | "known_unavailable";
   needsRefresh: boolean;
   metrics: MappedMetrics | null;
 };
@@ -85,6 +85,16 @@ export async function peekFighterMetrics(fighterName: string): Promise<MetricsPe
 
   if (!cached) {
     return { normalizedName, providerSlug: null, status: "missing", needsRefresh: true, metrics: null };
+  }
+
+  if (cached.source === "cito-not-found") {
+    return {
+      normalizedName,
+      providerSlug: null,
+      status: "known_unavailable",
+      needsRefresh: !isFresh(cached.last_synced_at),
+      metrics: null,
+    };
   }
 
   return {
@@ -165,6 +175,39 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
         providerSlug: cached.provider_slug,
         metrics: rowToMapped(cached),
       };
+    }
+
+    // not_found/ambiguous are deterministic outcomes — the search actually
+    // completed and Cito simply doesn't have this fighter. Record that so
+    // every subsequent poll/page-view doesn't re-burn a Cito call hoping
+    // for a different answer; the freshness window gives it another try
+    // later in case Cito adds the fighter. A transient "error" status is
+    // NOT recorded here, since that should keep retrying immediately.
+    if (searchResult.status === "not_found" || searchResult.status === "ambiguous") {
+      const now = new Date().toISOString();
+      const placeholderRow: FighterMetricsRow = {
+        fighter_name: fighterName,
+        normalized_name: normalizedName,
+        provider_slug: null,
+        source: "cito-not-found",
+        source_url: null,
+        slpm: null,
+        str_acc: null,
+        sapm: null,
+        str_def: null,
+        td_avg: null,
+        td_acc: null,
+        td_def: null,
+        sub_avg: null,
+        source_updated_at: null,
+        last_synced_at: now,
+        updated_at: now,
+      };
+
+      const saved = await upsertMetrics(placeholderRow);
+      if (!saved) {
+        console.error(`[fighterSync] Supabase save failure (not-found marker): "${fighterName}"`);
+      }
     }
 
     return { normalizedName, cacheStatus: "unavailable", providerSlug: null, metrics: null };

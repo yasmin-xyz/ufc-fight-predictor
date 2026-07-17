@@ -180,7 +180,16 @@ if (cacheError) {
 }
 
 if (cachedPrediction?.prediction) {
-  return NextResponse.json(cachedPrediction.prediction);
+  const cached = cachedPrediction.prediction;
+  const isComplete = !!cached.claude && !!cached.gpt && !!cached.gemini;
+
+  if (isComplete) {
+    return NextResponse.json(cached);
+  }
+
+  console.warn(
+    `Cached prediction for "${fightKey}" is missing a model result — regenerating instead of returning it`
+  );
 }
 
 const prompt = buildPrompt(body);

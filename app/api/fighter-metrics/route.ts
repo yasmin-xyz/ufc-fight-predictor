@@ -43,8 +43,24 @@ async function buildFighterPayload(name: string): Promise<FighterPayload> {
   let metricsStatus: MetricsStatus;
   let needsBackgroundSync = false;
 
+  // Cito has already told us (deterministically) that this fighter doesn't
+  // exist in its database. Settle to a terminal status instead of reporting
+  // "syncing" forever — only re-attempt once the freshness window expires.
+  const citoWillNeverResolve = metricsPeek.status === "known_unavailable";
+
   if (metricsPeek.status === "cached") {
     metricsStatus = "cached";
+    if (metricsPeek.needsRefresh) needsBackgroundSync = true;
+  } else if (citoWillNeverResolve) {
+    const fallback = staticFighterMetrics[name] || null;
+
+    if (fallback) {
+      metrics = fallback;
+      metricsStatus = "static-fallback";
+    } else {
+      metricsStatus = "unavailable";
+    }
+
     if (metricsPeek.needsRefresh) needsBackgroundSync = true;
   } else {
     const fallback = staticFighterMetrics[name] || null;
@@ -65,7 +81,11 @@ async function buildFighterPayload(name: string): Promise<FighterPayload> {
   const history = toDisplayHistory(historyPeek.history);
   let historyStatus: HistoryStatus;
 
-  if (!metricsPeek.providerSlug) {
+  if (citoWillNeverResolve) {
+    // We will never get a provider slug for this fighter — history can
+    // never be fetched, so don't leave it spinning either.
+    historyStatus = "unavailable";
+  } else if (!metricsPeek.providerSlug) {
     // Can't fetch fight history without a resolved Cito slug yet.
     historyStatus = metricsStatus === "unavailable" ? "unavailable" : "syncing";
   } else if (historyPeek.status === "cached") {
