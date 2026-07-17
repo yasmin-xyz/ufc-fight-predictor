@@ -52,6 +52,7 @@ export async function upsertMetrics(row: FighterMetricsRow) {
     return false;
   }
 
+  console.log(`[fighterMetricsRepo] Supabase upsert completed (metrics): "${row.fighter_name}"`);
   return true;
 }
 
@@ -86,12 +87,37 @@ export async function getCachedHistory(fighterSlug: string) {
   return data as (FighterHistoryRow & { id: number; updated_at: string })[];
 }
 
+// Postgres' ON CONFLICT DO UPDATE cannot touch the same conflict target
+// twice within one statement. Cito's fight-history responses occasionally
+// contain two entries that map to the same (fighter_slug, opponent_slug,
+// event_date, event_name) key — without de-duping first, the whole batch
+// upsert fails with "ON CONFLICT DO UPDATE command cannot affect row a
+// second time" and nothing gets saved.
+function dedupeHistoryRows(rows: FighterHistoryRow[]): FighterHistoryRow[] {
+  const seen = new Map<string, FighterHistoryRow>();
+
+  for (const row of rows) {
+    const key = `${row.fighter_slug}|${row.opponent_slug}|${row.event_date}|${row.event_name}`;
+    seen.set(key, row);
+  }
+
+  return [...seen.values()];
+}
+
 export async function upsertHistoryRows(rows: FighterHistoryRow[]) {
   if (rows.length === 0) return true;
 
+  const deduped = dedupeHistoryRows(rows);
+
+  if (deduped.length !== rows.length) {
+    console.warn(
+      `[fighterMetricsRepo] deduped ${rows.length - deduped.length} duplicate history row(s) for "${rows[0].fighter_slug}" before upsert`
+    );
+  }
+
   const { error } = await supabaseAdmin
     .from("fighter_history")
-    .upsert(rows, { onConflict: "fighter_slug,opponent_slug,event_date,event_name" });
+    .upsert(deduped, { onConflict: "fighter_slug,opponent_slug,event_date,event_name" });
 
   if (error) {
     console.error(
@@ -101,5 +127,8 @@ export async function upsertHistoryRows(rows: FighterHistoryRow[]) {
     return false;
   }
 
+  console.log(
+    `[fighterMetricsRepo] Supabase upsert completed (history): "${rows[0].fighter_name}" — ${deduped.length} row(s)`
+  );
   return true;
 }

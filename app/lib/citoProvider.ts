@@ -77,6 +77,7 @@ async function citoFetch<T>(path: string): Promise<CitoFetchResult<T>> {
 
   try {
     citoCallCount += 1;
+    console.log(`[citoProvider] Cito request started: ${path}`);
 
     const res = await fetch(`${CITO_BASE_URL}${path}`, {
       headers: { "x-api-key": CITO_API_KEY },

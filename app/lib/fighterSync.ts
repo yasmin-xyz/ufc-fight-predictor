@@ -334,9 +334,33 @@ export type FighterSyncResult = {
   history: HistorySyncResult;
 };
 
-export async function syncFighter(fighterName: string): Promise<FighterSyncResult> {
-  const metrics = await syncFighterMetrics(fighterName);
-  const history = await syncFighterHistory(fighterName, metrics.providerSlug);
+// Coalesces concurrent calls for the same fighter (e.g. two overlapping
+// /api/fighter-metrics requests both scheduling a background sync via
+// after()) so only one real sync — and one set of Cito calls — runs at a
+// time per fighter, per server instance.
+const inFlightSyncs = new Map<string, Promise<FighterSyncResult>>();
 
-  return { fighterName, metrics, history };
+export async function syncFighter(fighterName: string): Promise<FighterSyncResult> {
+  const key = normalizeFighterName(fighterName);
+
+  const existing = inFlightSyncs.get(key);
+  if (existing) {
+    console.log(`[fighterSync] sync already in flight, joining existing run: "${fighterName}"`);
+    return existing;
+  }
+
+  const runPromise = (async () => {
+    console.log(`[fighterSync] background sync started: "${fighterName}"`);
+    const metrics = await syncFighterMetrics(fighterName);
+    const history = await syncFighterHistory(fighterName, metrics.providerSlug);
+    return { fighterName, metrics, history };
+  })();
+
+  inFlightSyncs.set(key, runPromise);
+
+  try {
+    return await runPromise;
+  } finally {
+    inFlightSyncs.delete(key);
+  }
 }

@@ -81,19 +81,20 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
 
   const [fighterAMetrics, setFighterAMetrics] = useState<any>({});
   const [fighterBMetrics, setFighterBMetrics] = useState<any>({});
-  const [metricsStatus, setMetricsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [metricsStatus, setMetricsStatus] = useState<"idle" | "loading" | "polling" | "ready" | "timeout" | "error">("idle");
   const [fighterAMetricsState, setFighterAMetricsState] = useState<string>("");
   const [fighterBMetricsState, setFighterBMetricsState] = useState<string>("");
 
   const [fighterAHistory, setFighterAHistory] = useState<any[]>([]);
   const [fighterBHistory, setFighterBHistory] = useState<any[]>([]);
-  const [historyStatus, setHistoryStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [historyStatus, setHistoryStatus] = useState<"idle" | "loading" | "polling" | "ready" | "timeout" | "error">("idle");
   const [fighterAHistoryState, setFighterAHistoryState] = useState<string>("");
   const [fighterBHistoryState, setFighterBHistoryState] = useState<string>("");
   const [historyToggle, setHistoryToggle] = useState<"A" | "B">("A");
 
   const requestIdRef = useRef(0);
   const metricsRequestIdRef = useRef(0);
+  const metricsPollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function fetchPrediction(fight: any) {
     if (!fight) return;
@@ -192,48 +193,66 @@ fetchPrediction(defaultFight);
     loadFighters();
   }, [selectedFight]);
 
-  useEffect(() => {
-    if (!selectedFight?.fighterA || !selectedFight?.fighterB) return;
+  const METRICS_POLL_INTERVAL_MS = 2000;
+  const METRICS_POLL_MAX_MS = 30000;
 
-    const requestId = ++metricsRequestIdRef.current;
+  async function fetchFighterMetricsAndHistory(
+    fight: any,
+    requestId: number,
+    startedAt: number,
+    isPoll: boolean
+  ) {
+    if (requestId !== metricsRequestIdRef.current) return;
 
-    setHistoryToggle("A");
+    try {
+      const res = await fetch("/api/fighter-metrics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          names: [fight.fighterA, fight.fighterB],
+        }),
+      });
 
-    async function loadMetricsAndHistory() {
-      setMetricsStatus("loading");
-      setHistoryStatus("loading");
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
 
-      try {
-        const res = await fetch("/api/fighter-metrics", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            names: [selectedFight.fighterA, selectedFight.fighterB],
-          }),
-        });
+      const data = await res.json();
 
-        if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      if (requestId !== metricsRequestIdRef.current) return;
 
-        const data = await res.json();
+      const aMetricsState = data.metricsStatus?.[fight.fighterA] || "";
+      const bMetricsState = data.metricsStatus?.[fight.fighterB] || "";
+      const aHistoryState = data.historyStatus?.[fight.fighterA] || "";
+      const bHistoryState = data.historyStatus?.[fight.fighterB] || "";
 
-        if (requestId !== metricsRequestIdRef.current) return;
+      setFighterAMetrics(data.metrics?.[fight.fighterA] || {});
+      setFighterBMetrics(data.metrics?.[fight.fighterB] || {});
+      setFighterAMetricsState(aMetricsState);
+      setFighterBMetricsState(bMetricsState);
 
-        setFighterAMetrics(data.metrics?.[selectedFight.fighterA] || {});
-        setFighterBMetrics(data.metrics?.[selectedFight.fighterB] || {});
-        setFighterAMetricsState(data.metricsStatus?.[selectedFight.fighterA] || "");
-        setFighterBMetricsState(data.metricsStatus?.[selectedFight.fighterB] || "");
-        setMetricsStatus("ready");
+      setFighterAHistory(data.history?.[fight.fighterA] || []);
+      setFighterBHistory(data.history?.[fight.fighterB] || []);
+      setFighterAHistoryState(aHistoryState);
+      setFighterBHistoryState(bHistoryState);
 
-        setFighterAHistory(data.history?.[selectedFight.fighterA] || []);
-        setFighterBHistory(data.history?.[selectedFight.fighterB] || []);
-        setFighterAHistoryState(data.historyStatus?.[selectedFight.fighterA] || "");
-        setFighterBHistoryState(data.historyStatus?.[selectedFight.fighterB] || "");
-        setHistoryStatus("ready");
-      } catch (error) {
-        console.error("Failed loading fighter metrics/history", error);
+      const metricsStillSyncing = aMetricsState === "syncing" || bMetricsState === "syncing";
+      const historyStillSyncing = aHistoryState === "syncing" || bHistoryState === "syncing";
+      const elapsed = Date.now() - startedAt;
+      const timedOut = elapsed >= METRICS_POLL_MAX_MS;
 
-        if (requestId !== metricsRequestIdRef.current) return;
+      setMetricsStatus(metricsStillSyncing ? (timedOut ? "timeout" : "polling") : "ready");
+      setHistoryStatus(historyStillSyncing ? (timedOut ? "timeout" : "polling") : "ready");
 
+      if ((metricsStillSyncing || historyStillSyncing) && !timedOut) {
+        metricsPollTimerRef.current = setTimeout(() => {
+          fetchFighterMetricsAndHistory(fight, requestId, startedAt, true);
+        }, METRICS_POLL_INTERVAL_MS);
+      }
+    } catch (error) {
+      console.error("Failed loading fighter metrics/history", error);
+
+      if (requestId !== metricsRequestIdRef.current) return;
+
+      if (!isPoll) {
         setFighterAMetrics({});
         setFighterBMetrics({});
         setFighterAMetricsState("");
@@ -245,10 +264,49 @@ fetchPrediction(defaultFight);
         setFighterAHistoryState("");
         setFighterBHistoryState("");
         setHistoryStatus("error");
+        return;
+      }
+
+      // A poll attempt failing transiently shouldn't wipe out data we
+      // already have — just try again if we're still inside the window.
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < METRICS_POLL_MAX_MS) {
+        metricsPollTimerRef.current = setTimeout(() => {
+          fetchFighterMetricsAndHistory(fight, requestId, startedAt, true);
+        }, METRICS_POLL_INTERVAL_MS);
       }
     }
+  }
 
-    loadMetricsAndHistory();
+  function startMetricsHistoryFetch(fight: any) {
+    if (!fight?.fighterA || !fight?.fighterB) return;
+
+    const requestId = ++metricsRequestIdRef.current;
+    const startedAt = Date.now();
+
+    if (metricsPollTimerRef.current) {
+      clearTimeout(metricsPollTimerRef.current);
+      metricsPollTimerRef.current = null;
+    }
+
+    setMetricsStatus("loading");
+    setHistoryStatus("loading");
+
+    fetchFighterMetricsAndHistory(fight, requestId, startedAt, false);
+  }
+
+  useEffect(() => {
+    if (!selectedFight?.fighterA || !selectedFight?.fighterB) return;
+
+    setHistoryToggle("A");
+    startMetricsHistoryFetch(selectedFight);
+
+    return () => {
+      if (metricsPollTimerRef.current) {
+        clearTimeout(metricsPollTimerRef.current);
+        metricsPollTimerRef.current = null;
+      }
+    };
   }, [selectedFight]);
 
   const ufc329Fights = [
@@ -536,19 +594,24 @@ const statRows = [
               </div>
             </div>
             <div className="card-body">
-  {metricsStatus === "loading" ? (
-    <div className="stat-grid">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="skeleton-stat-row">
-          <div className="skeleton-shimmer skeleton-val" />
-          <div className="skeleton-center">
-            <div className="skeleton-shimmer skeleton-label" />
-            <div className="skeleton-shimmer skeleton-bar" />
+  {metricsStatus === "loading" || metricsStatus === "polling" ? (
+    <>
+      <div className="stat-grid">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="skeleton-stat-row">
+            <div className="skeleton-shimmer skeleton-val" />
+            <div className="skeleton-center">
+              <div className="skeleton-shimmer skeleton-label" />
+              <div className="skeleton-shimmer skeleton-bar" />
+            </div>
+            <div className="skeleton-shimmer skeleton-val right" />
           </div>
-          <div className="skeleton-shimmer skeleton-val right" />
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+      {metricsStatus === "polling" && (
+        <div className="skeleton-caption">Updating fighter data…</div>
+      )}
+    </>
   ) : hasMetrics ? (
     <div className="stat-grid">
       {statRows.map((stat, i) => (
@@ -577,9 +640,18 @@ const statRows = [
     </div>
   ) : (
     <div className="ai-loading">
-      {fighterAMetricsState === "syncing" || fighterBMetricsState === "syncing"
+      {metricsStatus === "timeout"
+        ? "Still fetching stats for this matchup — this is taking longer than usual"
+        : fighterAMetricsState === "syncing" || fighterBMetricsState === "syncing"
         ? "Fetching fresh stats for this matchup — check back in a moment"
         : "Advanced metrics not loaded for this matchup yet"}
+      {metricsStatus === "timeout" && (
+        <div>
+          <button type="button" className="retry-btn" onClick={() => startMetricsHistoryFetch(selectedFight)}>
+            Retry
+          </button>
+        </div>
+      )}
     </div>
   )}
 </div>
@@ -895,7 +967,7 @@ const statRows = [
                 </div>
               </div>
 
-              {historyStatus === "loading" ? (
+              {historyStatus === "loading" || historyStatus === "polling" ? (
                 <>
                   {Array.from({ length: 3 }).map((_, i) => (
                     <div key={i} className="skeleton-history-row">
@@ -911,9 +983,21 @@ const statRows = [
                       </div>
                     </div>
                   ))}
+                  {historyStatus === "polling" && (
+                    <div className="skeleton-caption">Updating fighter data…</div>
+                  )}
                 </>
               ) : historyStatus === "error" ? (
                 <div className="ai-loading">Fight history unavailable</div>
+              ) : historyStatus === "timeout" ? (
+                <div className="ai-loading">
+                  Recent fight history is still being prepared.
+                  <div>
+                    <button type="button" className="retry-btn" onClick={() => startMetricsHistoryFetch(selectedFight)}>
+                      Retry
+                    </button>
+                  </div>
+                </div>
               ) : (() => {
                 const activeHistory = historyToggle === "A" ? fighterAHistory : fighterBHistory;
                 const activeHistoryState = historyToggle === "A" ? fighterAHistoryState : fighterBHistoryState;
