@@ -69,6 +69,63 @@ function rowToMapped(row: FighterMetricsRow): MappedMetrics {
   };
 }
 
+export type MetricsPeekResult = {
+  normalizedName: string;
+  providerSlug: string | null;
+  status: "cached" | "missing";
+  needsRefresh: boolean;
+  metrics: MappedMetrics | null;
+};
+
+// Supabase-only read, no Cito calls. Used by the read-first fighter-metrics
+// route so a request never blocks on the throttled provider.
+export async function peekFighterMetrics(fighterName: string): Promise<MetricsPeekResult> {
+  const normalizedName = normalizeFighterName(fighterName);
+  const cached = await getCachedMetrics(normalizedName);
+
+  if (!cached) {
+    return { normalizedName, providerSlug: null, status: "missing", needsRefresh: true, metrics: null };
+  }
+
+  return {
+    normalizedName,
+    providerSlug: cached.provider_slug,
+    status: "cached",
+    needsRefresh: !isFresh(cached.last_synced_at),
+    metrics: rowToMapped(cached),
+  };
+}
+
+export type HistoryPeekResult = {
+  status: "cached" | "missing";
+  needsRefresh: boolean;
+  history: HistoryEntry[];
+};
+
+// Supabase-only read, no Cito calls.
+export async function peekFighterHistory(providerSlug: string | null): Promise<HistoryPeekResult> {
+  if (!providerSlug) {
+    return { status: "missing", needsRefresh: false, history: [] };
+  }
+
+  const cachedRows = await getCachedHistory(providerSlug);
+
+  if (!cachedRows || cachedRows.length === 0) {
+    return { status: "missing", needsRefresh: true, history: [] };
+  }
+
+  const newestUpdatedAt = cachedRows.reduce(
+    (max, r) => (r.updated_at > max ? r.updated_at : max),
+    cachedRows[0].updated_at
+  );
+
+  return {
+    status: "cached",
+    needsRefresh: !isFresh(newestUpdatedAt),
+    history: cachedRows.map(rowToHistoryEntry),
+  };
+}
+
 export type MetricsCacheStatus = "hit" | "miss_refreshed" | "stale_fallback" | "unavailable";
 
 export type MetricsSyncResult = {

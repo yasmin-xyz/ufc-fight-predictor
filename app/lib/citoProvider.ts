@@ -5,6 +5,22 @@ import { namesMatchExactly } from "./fighterName";
 const CITO_API_KEY = process.env.CITO_API_KEY;
 const CITO_BASE_URL = "https://api.citoapi.com/api/v1/ufc";
 
+export function isCitoConfigured(): boolean {
+  return !!CITO_API_KEY;
+}
+
+// Lets callers (the admin bulk-sync endpoint) report exactly how many real
+// Cito requests a run made, rather than inferring it from cache statuses.
+let citoCallCount = 0;
+
+export function getCitoCallCount(): number {
+  return citoCallCount;
+}
+
+export function resetCitoCallCount(): void {
+  citoCallCount = 0;
+}
+
 export type CitoFighterStats = {
   fighterSlug: string;
   sigStrikesLandedPerMin: string;
@@ -60,6 +76,8 @@ async function citoFetch<T>(path: string): Promise<CitoFetchResult<T>> {
   await throttle();
 
   try {
+    citoCallCount += 1;
+
     const res = await fetch(`${CITO_BASE_URL}${path}`, {
       headers: { "x-api-key": CITO_API_KEY },
     });

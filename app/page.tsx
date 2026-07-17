@@ -82,10 +82,14 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
   const [fighterAMetrics, setFighterAMetrics] = useState<any>({});
   const [fighterBMetrics, setFighterBMetrics] = useState<any>({});
   const [metricsStatus, setMetricsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [fighterAMetricsState, setFighterAMetricsState] = useState<string>("");
+  const [fighterBMetricsState, setFighterBMetricsState] = useState<string>("");
 
   const [fighterAHistory, setFighterAHistory] = useState<any[]>([]);
   const [fighterBHistory, setFighterBHistory] = useState<any[]>([]);
   const [historyStatus, setHistoryStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [fighterAHistoryState, setFighterAHistoryState] = useState<string>("");
+  const [fighterBHistoryState, setFighterBHistoryState] = useState<string>("");
   const [historyToggle, setHistoryToggle] = useState<"A" | "B">("A");
 
   const requestIdRef = useRef(0);
@@ -216,10 +220,14 @@ fetchPrediction(defaultFight);
 
         setFighterAMetrics(data.metrics?.[selectedFight.fighterA] || {});
         setFighterBMetrics(data.metrics?.[selectedFight.fighterB] || {});
+        setFighterAMetricsState(data.metricsStatus?.[selectedFight.fighterA] || "");
+        setFighterBMetricsState(data.metricsStatus?.[selectedFight.fighterB] || "");
         setMetricsStatus("ready");
 
         setFighterAHistory(data.history?.[selectedFight.fighterA] || []);
         setFighterBHistory(data.history?.[selectedFight.fighterB] || []);
+        setFighterAHistoryState(data.historyStatus?.[selectedFight.fighterA] || "");
+        setFighterBHistoryState(data.historyStatus?.[selectedFight.fighterB] || "");
         setHistoryStatus("ready");
       } catch (error) {
         console.error("Failed loading fighter metrics/history", error);
@@ -228,10 +236,14 @@ fetchPrediction(defaultFight);
 
         setFighterAMetrics({});
         setFighterBMetrics({});
+        setFighterAMetricsState("");
+        setFighterBMetricsState("");
         setMetricsStatus("error");
 
         setFighterAHistory([]);
         setFighterBHistory([]);
+        setFighterAHistoryState("");
+        setFighterBHistoryState("");
         setHistoryStatus("error");
       }
     }
@@ -524,7 +536,20 @@ const statRows = [
               </div>
             </div>
             <div className="card-body">
-  {hasMetrics ? (
+  {metricsStatus === "loading" ? (
+    <div className="stat-grid">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="skeleton-stat-row">
+          <div className="skeleton-shimmer skeleton-val" />
+          <div className="skeleton-center">
+            <div className="skeleton-shimmer skeleton-label" />
+            <div className="skeleton-shimmer skeleton-bar" />
+          </div>
+          <div className="skeleton-shimmer skeleton-val right" />
+        </div>
+      ))}
+    </div>
+  ) : hasMetrics ? (
     <div className="stat-grid">
       {statRows.map((stat, i) => (
         <div key={i} className="stat-row">
@@ -551,7 +576,11 @@ const statRows = [
       ))}
     </div>
   ) : (
-    <div className="ai-loading">Advanced metrics not loaded for this matchup yet</div>
+    <div className="ai-loading">
+      {fighterAMetricsState === "syncing" || fighterBMetricsState === "syncing"
+        ? "Fetching fresh stats for this matchup — check back in a moment"
+        : "Advanced metrics not loaded for this matchup yet"}
+    </div>
   )}
 </div>
           </div>
@@ -867,14 +896,36 @@ const statRows = [
               </div>
 
               {historyStatus === "loading" ? (
-                <div className="ai-loading">Loading fight history...</div>
+                <>
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="skeleton-history-row">
+                      <div className="skeleton-history-header">
+                        <div className="skeleton-shimmer skeleton-history-opponent" />
+                        <div className="skeleton-shimmer skeleton-history-badge" />
+                      </div>
+                      <div className="skeleton-shimmer skeleton-history-meta" />
+                      <div className="skeleton-history-stats">
+                        <div className="skeleton-shimmer skeleton-hstat" />
+                        <div className="skeleton-shimmer skeleton-hstat" />
+                        <div className="skeleton-shimmer skeleton-hstat" />
+                      </div>
+                    </div>
+                  ))}
+                </>
               ) : historyStatus === "error" ? (
                 <div className="ai-loading">Fight history unavailable</div>
               ) : (() => {
                 const activeHistory = historyToggle === "A" ? fighterAHistory : fighterBHistory;
+                const activeHistoryState = historyToggle === "A" ? fighterAHistoryState : fighterBHistoryState;
 
                 if (activeHistory.length === 0) {
-                  return <div className="ai-loading">No fight history available</div>;
+                  return (
+                    <div className="ai-loading">
+                      {activeHistoryState === "syncing"
+                        ? "Fetching fight history — check back in a moment"
+                        : "No fight history available"}
+                    </div>
+                  );
                 }
 
                 return activeHistory.map((fight: any, i: number) => (
