@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { mergeFightData } from "./lib/mergeFightData";
+import { namesMatchExactly } from "./lib/fighterName";
 
 function fightName(fight: any) {
   return `${fight.home_team} vs. ${fight.away_team}`;
@@ -33,12 +34,55 @@ function getNextEventFights(fights: any[]) {
   });
 }
 
-function impliedProbability(americanOdds: number) {
+function rawImpliedProbability(americanOdds: number | null | undefined): number | null {
   if (!americanOdds) return null;
-  if (americanOdds < 0) {
-    return Math.round((-americanOdds / (-americanOdds + 100)) * 100);
-  }
-  return Math.round((100 / (americanOdds + 100)) * 100);
+  if (americanOdds < 0) return -americanOdds / (-americanOdds + 100);
+  return 100 / (americanOdds + 100);
+}
+
+// Raw implied probabilities from opposite sides of the same market always
+// sum to more than 100% (the bookmaker's vig). Normalize so both sides sum
+// to exactly 100%, keeping full precision internally and rounding only for
+// display.
+function normalizedImpliedProbabilities(
+  oddsA: number | null | undefined,
+  oddsB: number | null | undefined
+): { a: number | null; b: number | null } {
+  const rawA = rawImpliedProbability(oddsA);
+  const rawB = rawImpliedProbability(oddsB);
+
+  if (rawA === null || rawB === null) return { a: null, b: null };
+
+  const sum = rawA + rawB;
+  if (sum <= 0) return { a: null, b: null };
+
+  return {
+    a: Math.round((rawA / sum) * 100),
+    b: Math.round((rawB / sum) * 100),
+  };
+}
+
+type MarketGapTier =
+  | "Market-aligned"
+  | "Slight contrarian lean"
+  | "Contrarian pick"
+  | "High-risk contrarian pick"
+  | "Mixed model signal";
+
+// Tiered by how much of an underdog the consensus winner is per the
+// (normalized) market — not by the raw size of the confidence/market gap,
+// since a large gap on a market favorite isn't "contrarian" at all.
+function marketGapTier(
+  consensusWinnerMarketProbability: number | null,
+  modelAgreement: string | undefined
+): MarketGapTier | null {
+  if (consensusWinnerMarketProbability === null) return null;
+  if (modelAgreement === "Split") return "Mixed model signal";
+
+  if (consensusWinnerMarketProbability >= 50) return "Market-aligned";
+  if (consensusWinnerMarketProbability >= 35) return "Slight contrarian lean";
+  if (consensusWinnerMarketProbability >= 20) return "Contrarian pick";
+  return "High-risk contrarian pick";
 }
 function formatAmericanOdds(odds: number | null | undefined) {
   if (odds === null || odds === undefined) return "—";
@@ -113,14 +157,20 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
   const metricsRequestIdRef = useRef(0);
   const metricsPollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function fetchPrediction(fight: any) {
+  // Called only with data resolved for THIS exact fight, passed explicitly —
+  // never reads fighterAStats/fighterBStats/fighterAMetrics/fighterBMetrics
+  // from component state, since those can lag behind the currently selected
+  // fight while their own effects are still loading.
+  async function fetchPrediction(
+    fight: any,
+    fighterAStatsArg: any,
+    fighterBStatsArg: any,
+    fighterAMetricsArg: any,
+    fighterBMetricsArg: any,
+    requestId: number
+  ) {
     if (!fight) return;
-  
-    const requestId = ++requestIdRef.current;
-
-    setLoadingPrediction(true);
-    setPrediction(null);
-    setPredictionError(false);
+    if (requestId !== requestIdRef.current) return;
 
     const bookmaker = fight.odds?.bookmakers?.[0];
     const outcomes = bookmaker?.markets?.[0]?.outcomes || [];
@@ -137,15 +187,24 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
           oddsA: homeOdds?.price || 0,
           oddsB: awayOdds?.price || 0,
 
-          fighterAStats,
-          fighterBStats,
+          fighterAStats: fighterAStatsArg,
+          fighterBStats: fighterBStatsArg,
 
-          fighterAMetrics,
-          fighterBMetrics,
+          fighterAMetrics: fighterAMetricsArg,
+          fighterBMetrics: fighterBMetricsArg,
+
+          // Explicit source tags so the server can verify these metrics
+          // objects actually belong to the fighters named above, instead
+          // of trusting the client's bundling.
+          fighterAMetricsSource: fight.fighterA,
+          fighterBMetricsSource: fight.fighterB,
         }),
       });
 
-      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => null);
+        throw new Error(errorBody?.error || `Request failed (${res.status})`);
+      }
 
       const data = await res.json();
 
@@ -171,6 +230,76 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
     }
   }
 
+  // Single coordinated data-loading operation for a fight selection: fetch
+  // both ESPN profiles and both Cito/Supabase metric records for the exact
+  // fighters in `fight`, validate the ESPN data against the requested
+  // names, then hand everything to fetchPrediction as explicit arguments.
+  // The prediction request never starts until this has resolved.
+  async function loadPredictionData(fight: any) {
+    if (!fight?.fighterA || !fight?.fighterB) return;
+
+    const requestId = ++requestIdRef.current;
+
+    setLoadingPrediction(true);
+    setPrediction(null);
+    setPredictionError(false);
+
+    try {
+      const [statsAResult, statsBResult, metricsResult] = await Promise.allSettled([
+        fight.fighterAId
+          ? fetch(`/api/fighter-stats?id=${fight.fighterAId}`).then((r) => (r.ok ? r.json() : null))
+          : Promise.resolve(null),
+        fight.fighterBId
+          ? fetch(`/api/fighter-stats?id=${fight.fighterBId}`).then((r) => (r.ok ? r.json() : null))
+          : Promise.resolve(null),
+        fetch("/api/fighter-metrics", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ names: [fight.fighterA, fight.fighterB] }),
+        }).then((r) => (r.ok ? r.json() : null)),
+      ]);
+
+      if (requestId !== requestIdRef.current) return;
+
+      const rawStatsA = statsAResult.status === "fulfilled" ? statsAResult.value : null;
+      const rawStatsB = statsBResult.status === "fulfilled" ? statsBResult.value : null;
+      const metricsData = metricsResult.status === "fulfilled" ? metricsResult.value : null;
+
+      // ESPN bio data is supplementary — if it doesn't belong to the
+      // requested fighter, drop it rather than risk feeding it in under
+      // the wrong name. Cito/Supabase metrics are already correctly keyed
+      // by name in the response itself, so no separate check is needed.
+      const statsA = rawStatsA?.name && namesMatchExactly(rawStatsA.name, fight.fighterA) ? rawStatsA : null;
+      const statsB = rawStatsB?.name && namesMatchExactly(rawStatsB.name, fight.fighterB) ? rawStatsB : null;
+
+      if (rawStatsA && !statsA) {
+        console.warn(`ESPN stats name mismatch: expected "${fight.fighterA}", got "${rawStatsA?.name}"`);
+      }
+      if (rawStatsB && !statsB) {
+        console.warn(`ESPN stats name mismatch: expected "${fight.fighterB}", got "${rawStatsB?.name}"`);
+      }
+
+      const metricsA = metricsData?.metrics?.[fight.fighterA] || {};
+      const metricsB = metricsData?.metrics?.[fight.fighterB] || {};
+
+      await fetchPrediction(fight, statsA, statsB, metricsA, metricsB, requestId);
+    } catch (error) {
+      console.error("Failed to load prediction inputs:", error);
+
+      if (requestId === requestIdRef.current) {
+        setPredictionError(true);
+        setLoadingPrediction(false);
+      }
+    }
+  }
+
+  // Single entry point for every fight-selection call site, so the
+  // coordinated data-load + prediction pipeline always runs the same way.
+  function selectFight(fight: any) {
+    setSelectedFight(fight);
+    loadPredictionData(fight);
+  }
+
   useEffect(() => {
     async function fetchOdds() {
       try {
@@ -189,8 +318,7 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
         const mainCardFights = merged.slice(-5).reverse();
 const defaultFight = mainCardFights[0] || merged[0];
 
-setSelectedFight(defaultFight);
-fetchPrediction(defaultFight);
+selectFight(defaultFight);
       } catch (error) {
         console.error("Failed to load odds:", error);
       } finally {
@@ -379,17 +507,38 @@ fetchPrediction(defaultFight);
           return;
         }
       
-        setSelectedFight(firstFight);
-        setPrediction(null);
-        fetchPrediction(firstFight);
+        selectFight(firstFight);
       }
 
-  const firstBookmaker = selectedFight?.odds?.bookmakers?.[0];  
+  const firstBookmaker = selectedFight?.odds?.bookmakers?.[0];
   const outcomes = firstBookmaker?.markets?.[0]?.outcomes || [];
   const homeOdds = outcomes.find((o: any) => o.name === selectedFight?.fighterA);
   const awayOdds = outcomes.find((o: any) => o.name === selectedFight?.fighterB);
-  const homeImplied = impliedProbability(homeOdds?.price);
-  const awayImplied = impliedProbability(awayOdds?.price);
+  const { a: homeImplied, b: awayImplied } = normalizedImpliedProbabilities(homeOdds?.price, awayOdds?.price);
+
+  // Which fighter did the consensus actually pick? Never assume fighterA —
+  // compare against both names explicitly so the AI-market comparison
+  // below always uses that same fighter's own market probability.
+  const consensusWinnerName: string | undefined = prediction?.consensus?.winner;
+  const consensusWinnerIsFighterA =
+    !!consensusWinnerName && !!selectedFight?.fighterA && namesMatchExactly(consensusWinnerName, selectedFight.fighterA);
+  const consensusWinnerIsFighterB =
+    !!consensusWinnerName && !!selectedFight?.fighterB && namesMatchExactly(consensusWinnerName, selectedFight.fighterB);
+  const consensusWinnerMarketProbability = consensusWinnerIsFighterA
+    ? homeImplied
+    : consensusWinnerIsFighterB
+    ? awayImplied
+    : null;
+
+  const marketGap =
+    prediction?.consensus?.confidence != null && consensusWinnerMarketProbability !== null
+      ? prediction.consensus.confidence - consensusWinnerMarketProbability
+      : null;
+
+  const marketGapLabel = marketGapTier(consensusWinnerMarketProbability, prediction?.consensus?.modelAgreement);
+
+  const isContrarianPick =
+    marketGapLabel === "Contrarian pick" || marketGapLabel === "High-risk contrarian pick";
 
   const hasMetrics =
   metricsStatus === "ready" &&
@@ -551,9 +700,7 @@ const statRows = [
 
           if (!nextFight) return;
 
-          setSelectedFight(nextFight);
-          setPrediction(null);
-          fetchPrediction(nextFight);
+          selectFight(nextFight);
         }}
       >
         {visibleFights.map((fight) => (
@@ -723,7 +870,7 @@ const statRows = [
       <div className="ai-loading ai-loading-error">
         Couldn't generate an AI breakdown for this matchup.
         <div>
-          <button type="button" className="retry-btn" onClick={() => fetchPrediction(selectedFight)}>
+          <button type="button" className="retry-btn" onClick={() => loadPredictionData(selectedFight)}>
             Retry
           </button>
         </div>
@@ -893,7 +1040,7 @@ const statRows = [
   <div className="value-divider" />
 
   <div className="value-section">
-    <div className="value-section-title">AI Estimated Win Probability</div>
+    <div className="value-section-title">Average Model Confidence</div>
 
     <div className="value-analysis-row value-ai-row">
       <span className="value-fighter">
@@ -905,39 +1052,36 @@ const statRows = [
           : "—"}
       </span>
     </div>
+    <div className="value-caption">
+      Average of each model&apos;s self-reported confidence — not a calibrated win probability.
+    </div>
   </div>
 
   <div className="value-analysis-row value-edge-row">
     <div>
-      <div className="value-section-title">Value Edge</div>
-      <div className="value-edge-label">
-        {prediction?.consensus?.confidence && homeImplied
-          ? (() => {
-              const edge = prediction.consensus.confidence - homeImplied;
-
-              if (edge >= 10) return "Strong Value";
-              if (edge >= 6) return "Good Value";
-              if (edge >= 3) return "Small Value";
-              if (edge > 0) return "Tiny Edge";
-
-              return "No Value";
-            })()
-          : "Pending AI"}
+      <div className="value-section-title">AI–Market Gap</div>
+      <div className={`value-edge-label ${isContrarianPick ? "value-edge-label-contrarian" : ""}`}>
+        {marketGapLabel || "Pending AI"}
       </div>
     </div>
 
-    {prediction?.consensus?.confidence && homeImplied ? (() => {
-      const edge = prediction.consensus.confidence - homeImplied;
-
-      return (
-        <span className={edge > 0 ? "edge-pos" : "edge-neg"}>
-          {edge > 0 ? `+${edge}%` : `${edge}%`}
-        </span>
-      );
-    })() : (
+    {marketGap !== null ? (
+      <span className={marketGap > 0 ? "edge-pos" : "edge-neg"}>
+        {marketGap > 0 ? `+${marketGap}%` : `${marketGap}%`}
+      </span>
+    ) : (
       <span className="value-percentage">—</span>
     )}
   </div>
+
+  {isContrarianPick && (
+    <div className="contrarian-badge">
+      <span className="contrarian-badge-icon">⚠</span>
+      <span>
+        <strong>{marketGapLabel}</strong> — the AI consensus disagrees with the betting market on this fight.
+      </span>
+    </div>
+  )}
 </div>
             </div>
           </div>
@@ -951,17 +1095,18 @@ const statRows = [
   <div className="card-body">
     {(() => {
       const models = [
-        { model: "Claude", color: "#CF9B60", prediction: prediction?.claude },
-        { model: "GPT-4", color: "#5DC98A", prediction: prediction?.gpt },
-        { model: "Gemini", color: "#5B9EE8", prediction: prediction?.gemini },
+        { key: "claude", model: "Claude", color: "#CF9B60", prediction: prediction?.claude },
+        { key: "gpt", model: "GPT-4", color: "#5DC98A", prediction: prediction?.gpt },
+        { key: "gemini", model: "Gemini", color: "#5B9EE8", prediction: prediction?.gemini },
       ];
 
-      const readyModels = models.filter((m) => m.prediction);
       const consensusWinner = prediction?.consensus?.winner;
-
-      const agreeingModels = readyModels.filter(
-        (m) => m.prediction?.predictedWinner === consensusWinner
-      );
+      // Server-computed — reflects the corrected aggregation (ties/failed
+      // models handled there), so the UI never re-derives this differently.
+      const agreeingModelKeys: string[] = prediction?.consensus?.agreeingModels || [];
+      const totalSuccessfulModels: number =
+        prediction?.consensus?.totalSuccessfulModels ?? models.filter((m) => m.prediction).length;
+      const modelAgreementLabel: string = prediction?.consensus?.modelAgreement || "";
 
       return (
         <>
@@ -983,20 +1128,18 @@ const statRows = [
 
           <div
             className={`model-agreement ${
-              readyModels.length > 0 && agreeingModels.length === readyModels.length
-                ? "model-agreement-full"
-                : ""
+              modelAgreementLabel === "Unanimous" ? "model-agreement-full" : ""
             }`}
           >
             <span className="model-agreement-label">Model Agreement</span>
             <span className="model-agreement-val">
-              {readyModels.length ? `${agreeingModels.length} / ${readyModels.length}` : "Pending"}
+              {totalSuccessfulModels ? `${agreeingModelKeys.length} / ${totalSuccessfulModels}` : "Pending"}
             </span>
           </div>
 
           {models.map((m, i) => {
             const pick = m.prediction?.predictedWinner || "Pending";
-            const agrees = pick === consensusWinner && pick !== "Pending";
+            const agrees = agreeingModelKeys.includes(m.key);
 
             return (
               <div key={i} className="model-row">

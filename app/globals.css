@@ -917,6 +917,13 @@ body {
   font-weight: 650;
 }
 
+.value-caption {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.34);
+}
+
 .value-edge-row {
   padding-top: 2px;
 }
@@ -928,10 +935,38 @@ body {
   font-weight: 600;
 }
 
+.value-edge-label-contrarian {
+  color: #E8B84B;
+}
+
 .value-edge-row .edge-pos,
 .value-edge-row .edge-neg {
   flex-shrink: 0;
   font-size: 16px;
+  font-weight: 700;
+}
+
+.contrarian-badge {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: rgba(232, 184, 75, 0.08);
+  border: 0.5px solid rgba(232, 184, 75, 0.25);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.contrarian-badge-icon {
+  color: #E8B84B;
+  flex-shrink: 0;
+}
+
+.contrarian-badge strong {
+  color: #E8B84B;
   font-weight: 700;
 }
 
