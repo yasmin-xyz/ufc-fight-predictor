@@ -135,6 +135,8 @@ export default function Home() {
 const [fighterBStats, setFighterBStats] = useState<any>(null);
   const [ufcEvent, setUfcEvent] = useState<any>(null);
 const [mergedFights, setMergedFights] = useState<any[]>([]);
+  const [eventVenue, setEventVenue] = useState<string>("");
+  const [eventLocation, setEventLocation] = useState<string>("");
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
   const [predictionError, setPredictionError] = useState(false);
@@ -314,7 +316,26 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
         setOdds(oddsData);
         setUfcEvent(eventData);
         setMergedFights(merged);
-        
+
+        try {
+          const espnRes = await fetch(
+            "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard"
+          );
+          const espnData = await espnRes.json();
+          const nextEvent = espnData?.events?.[0];
+          if (nextEvent) {
+            const venue = nextEvent?.competitions?.[0]?.venue;
+            if (venue) {
+              setEventVenue(venue.fullName || "");
+              const city = venue.address?.city || "";
+              const state = venue.address?.state || "";
+              setEventLocation(`${city}${state ? `, ${state}` : ""}`);
+            }
+          }
+        } catch {
+          // venue data is optional, fail silently
+        }
+
         const mainCardFights = merged.slice(-5).reverse();
 const defaultFight = mainCardFights[0] || merged[0];
 
@@ -466,6 +487,35 @@ selectFight(defaultFight);
     };
   }, [selectedFight]);
 
+  useEffect(() => {
+    const wrapper = document.querySelector('.about-wrapper');
+    const popover = document.querySelector('.about-popover');
+    if (!wrapper || !popover) return;
+
+    const isMobile = () => window.innerWidth < 768;
+
+    const handleClick = (e: Event) => {
+      if (isMobile()) {
+        e.stopPropagation();
+        popover.classList.toggle('about-popover-visible');
+      }
+    };
+
+    const handleOutsideClick = (e: Event) => {
+      if (!wrapper.contains(e.target as Node)) {
+        popover.classList.remove('about-popover-visible');
+      }
+    };
+
+    wrapper.addEventListener('click', handleClick);
+    document.addEventListener('click', handleOutsideClick);
+
+    return () => {
+      wrapper.removeEventListener('click', handleClick);
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, []);
+
   const ufc329Fights = [
     "Conor McGregor vs. Max Holloway",
   ];
@@ -616,15 +666,40 @@ const statRows = [
     <main>
      <nav className="nav">
   <div className="nav-logo">
-    <span className="nav-logo-pickem">PICK'EM</span>
+    <div className="nav-logo-icon">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M3 12L8 4L13 12" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M5.5 8.5H10.5" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+      </svg>
+    </div>
+    <div className="nav-logo-letters">
+      <span className="nav-ltr" style={{ transform: "rotate(-2deg) translateY(1px)" }}>P</span>
+      <span className="nav-ltr" style={{ transform: "rotate(1.5deg) translateY(-1px)" }}>I</span>
+      <span className="nav-ltr" style={{ transform: "rotate(-1deg) translateY(1px)" }}>C</span>
+      <span className="nav-ltr" style={{ transform: "rotate(2deg) translateY(-1px)" }}>K</span>
+      <span className="nav-ltr" style={{ transform: "rotate(-1.5deg) translateY(0px)", margin: "0 1px" }}>'</span>
+      <span className="nav-ltr" style={{ transform: "rotate(1deg) translateY(1px)" }}>E</span>
+      <span className="nav-ltr" style={{ transform: "rotate(-2deg) translateY(-1px)" }}>M</span>
+    </div>
     <span className="nav-logo-labs">LABS</span>
   </div>
-  <div className="nav-links">
-    <span className="nav-link" aria-disabled="true">EVENTS</span>
-    <span className="nav-link" aria-disabled="true">FIGHTERS</span>
-    <span className="nav-link" aria-disabled="true">MY PICKS</span>
+  <div className="nav-right">
+    <div className="about-wrapper">
+      <button className="about-btn" aria-label="About Pick'em Labs">ⓘ</button>
+      <div className="about-popover">
+        <div className="about-title">Pick'em Labs</div>
+        <p className="about-body">
+          An AI-powered UFC fight analysis tool. For every fight on the card, it pulls live betting odds from major bookmakers, calculates market-implied probabilities, and generates independent fight breakdowns from Claude, GPT-4, and Gemini — then surfaces a consensus prediction and value edge so you can see where the AI disagrees with the market.
+        </p>
+        <div className="about-models">
+          <span className="about-model"><span style={{background:"#CF9B60"}} className="about-dot"></span>Claude</span>
+          <span className="about-model"><span style={{background:"#5DC98A"}} className="about-dot"></span>GPT-4</span>
+          <span className="about-model"><span style={{background:"#5B9EE8"}} className="about-dot"></span>Gemini</span>
+        </div>
+      </div>
+    </div>
     {ufcEvent?.shortName && (
-      <span className="nav-badge">{ufcEvent.shortName}</span>
+      <span className="nav-badge" id="event-badge">{ufcEvent.shortName}</span>
     )}
   </div>
 </nav>
@@ -636,7 +711,21 @@ const statRows = [
       <span className="event-eyebrow">Next Event</span>
       <span className="event-name">{ufcEvent.eventName}</span>
       <span className="event-date">
-        {ufcEvent.date ? new Date(ufcEvent.date).toLocaleDateString() : "—"} · {ufcEvent.venue}
+        {selectedFight?.date
+          ? new Date(selectedFight.date).toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })
+          : ufcEvent.date
+          ? new Date(ufcEvent.date).toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })
+          : ""}
+        {eventVenue && ` · ${eventVenue}`}
+        {eventLocation && ` · ${eventLocation}`}
       </span>
     </>
   ) : (
@@ -725,7 +814,7 @@ const statRows = [
               <h2 className="card-label">Tale of the Tape</h2>
               <span className="weight-pill">MMA</span>
             </div>
-            <div className="card-body">
+            <div className="card-body card-body-flush">
               <div className="tot">
               <div className="fighter-a">
   {fighterAStats?.headshot && (

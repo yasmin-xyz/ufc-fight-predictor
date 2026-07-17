@@ -36,12 +36,170 @@ body {
 
 /* NAV */
 .nav { background: #0F0F11; border-bottom: 0.5px solid rgba(255,255,255,0.08); padding: 0 40px; height: 54px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-.nav-logo { display: flex; align-items: baseline; gap: 4px; }
-.nav-logo-pickem { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: #6C6FE8; letter-spacing: 0.04em; line-height: 1; }
-.nav-logo-labs { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.5); letter-spacing: 0.18em; text-transform: uppercase; }
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-logo-icon {
+  width: 28px;
+  height: 28px;
+  background: #6C6FE8;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-logo-letters {
+  display: inline-flex;
+  align-items: center;
+  gap: 0px;
+}
+
+.nav-ltr {
+  font-family: 'Titan One', sans-serif;
+  font-size: 26px;
+  color: #ffffff;
+  line-height: 1;
+  display: inline-block;
+  letter-spacing: -0.04em;
+  -webkit-text-stroke: 1.5px rgba(0,0,0,0.9);
+  paint-order: stroke fill;
+  text-shadow: 2px 2px 0px #6C6FE8, 4px 4px 0px #5254c8, 5px 5px 0px #3a3db0;
+}
+
+.nav-logo-labs {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
 .nav-links { display: flex; align-items: center; gap: 28px; }
 .nav-link { font-size: 13px; color: rgba(255,255,255,0.28); cursor: default; }
 .nav-badge { font-size: 11px; background: rgba(108,111,232,0.12); color: #8B8FFF; border: 0.5px solid rgba(108,111,232,0.25); padding: 4px 12px; border-radius: 20px; }
+
+/* NAV RIGHT */
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* ABOUT TOOLTIP */
+.about-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.about-btn {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.35);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  transition: color 0.15s;
+  display: flex;
+  align-items: center;
+}
+
+.about-btn:hover {
+  color: rgba(255,255,255,0.7);
+}
+
+.about-popover {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: 300px;
+  background: #1C1C22;
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 200;
+}
+
+/* Desktop — hover to open */
+@media (min-width: 768px) {
+  .about-wrapper:hover .about-popover {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile — the icon sits mid-nav, not flush with the viewport edge, so a
+   300px popover anchored with right:0 relative to the icon overflows off
+   the left edge of the screen. Pin it to the viewport instead. */
+@media (max-width: 767px) {
+  .about-popover {
+    position: fixed;
+    top: 66px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
+}
+
+/* Mobile — class toggle to open */
+.about-popover-visible {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: translateY(0) !important;
+}
+
+.about-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #E8E8EC;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+
+.about-body {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  line-height: 1.65;
+  margin-bottom: 12px;
+}
+
+.about-models {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-top: 10px;
+  border-top: 0.5px solid rgba(255,255,255,0.07);
+}
+
+.about-model {
+  font-size: 11px;
+  color: rgba(255,255,255,0.35);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.about-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
 
 /* EVENT BAR */
 .event-bar { background: rgba(108,111,232,0.04); border-bottom: 0.5px solid rgba(108,111,232,0.1); padding: 11px 40px; display: flex; align-items: center; gap: 12px; }
@@ -89,6 +247,7 @@ body {
 .card-header { padding: 13px 18px; border-bottom: 0.5px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; }
 .card-meta { font-size: 10px; color: rgba(255,255,255,0.32); }
 .card-body { padding: 18px; }
+.card-body-flush { padding-left: 0; }
 
 /* FIGHT LIST */
 .fight-item:last-child { border-bottom: none; }
@@ -389,10 +548,6 @@ body {
 
   .nav-logo {
     flex-shrink: 0;
-  }
-
-  .nav-logo-pickem {
-    font-size: 24px;
   }
 
   .nav-logo-labs {
