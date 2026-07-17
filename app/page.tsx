@@ -67,6 +67,22 @@ function formatPredictedRound(
   return round || "—";
 }
 
+const NAME_SUFFIXES = new Set(["jr.", "jr", "sr.", "sr", "ii", "iii", "iv", "v"]);
+
+function shortName(fullName: string | undefined, fallback = "Fighter") {
+  if (!fullName) return fallback;
+
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 0) return fallback;
+
+  let last = parts[parts.length - 1];
+  if (parts.length > 1 && NAME_SUFFIXES.has(last.toLowerCase())) {
+    last = parts[parts.length - 2];
+  }
+
+  return last;
+}
+
 export default function Home() {
   const [odds, setOdds] = useState<any[]>([]);
   const [loadingOdds, setLoadingOdds] = useState(true);
@@ -77,6 +93,7 @@ const [fighterBStats, setFighterBStats] = useState<any>(null);
 const [mergedFights, setMergedFights] = useState<any[]>([]);
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
+  const [predictionError, setPredictionError] = useState(false);
   const [activeTab, setActiveTab] = useState("main");
 
   const [fighterAMetrics, setFighterAMetrics] = useState<any>({});
@@ -100,9 +117,10 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
     if (!fight) return;
   
     const requestId = ++requestIdRef.current;
-  
+
     setLoadingPrediction(true);
     setPrediction(null);
+    setPredictionError(false);
 
     const bookmaker = fight.odds?.bookmakers?.[0];
     const outcomes = bookmaker?.markets?.[0]?.outcomes || [];
@@ -118,23 +136,34 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
           fighterB: fight.fighterB,
           oddsA: homeOdds?.price || 0,
           oddsB: awayOdds?.price || 0,
-        
+
           fighterAStats,
           fighterBStats,
-        
+
           fighterAMetrics,
           fighterBMetrics,
         }),
       });
+
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+
       const data = await res.json();
 
-if (requestId !== requestIdRef.current) {
-  return;
-}
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
 
-setPrediction(data);
+      if (!data || (!data.claude && !data.gpt && !data.gemini)) {
+        throw new Error("Prediction response was empty");
+      }
+
+      setPrediction(data);
     } catch (error) {
       console.error("Failed to fetch prediction:", error);
+
+      if (requestId === requestIdRef.current) {
+        setPredictionError(true);
+      }
     } finally {
       if (requestId === requestIdRef.current) {
         setLoadingPrediction(false);
@@ -442,30 +471,36 @@ const statRows = [
     <span className="nav-logo-labs">LABS</span>
   </div>
   <div className="nav-links">
-    <span className="nav-link">EVENTS</span>
-    <span className="nav-link">FIGHTERS</span>
-    <span className="nav-link">MY PICKS</span>
-    <span className="nav-badge">
-      {ufcEvent?.shortName || "Loading event..."}
-    </span>
+    <span className="nav-link" aria-disabled="true">EVENTS</span>
+    <span className="nav-link" aria-disabled="true">FIGHTERS</span>
+    <span className="nav-link" aria-disabled="true">MY PICKS</span>
+    {ufcEvent?.shortName && (
+      <span className="nav-badge">{ufcEvent.shortName}</span>
+    )}
   </div>
 </nav>
 
 <div className="event-bar">
   <div className="event-dot"></div>
-  <span className="event-eyebrow">Next Event</span>
-  <span className="event-name">{ufcEvent?.eventName || "Loading event..."}</span>
-  <span className="event-date">
-    {ufcEvent?.date ? new Date(ufcEvent.date).toLocaleDateString() : "Loading date..."} · {ufcEvent?.venue || "Loading venue..."}
-  </span>
+  {ufcEvent ? (
+    <>
+      <span className="event-eyebrow">Next Event</span>
+      <span className="event-name">{ufcEvent.eventName}</span>
+      <span className="event-date">
+        {ufcEvent.date ? new Date(ufcEvent.date).toLocaleDateString() : "—"} · {ufcEvent.venue}
+      </span>
+    </>
+  ) : (
+    <span className="event-eyebrow">Loading next event…</span>
+  )}
 </div>
 
       <div className="page-header">
-        <div className="page-title">Fight Analysis</div>
+        <h1 className="page-title">Fight Analysis</h1>
         <div className="page-sub">
   <span className="page-sub-kicker">AI-powered breakdowns</span>
   <span className="page-sub-event">
-    {ufcEvent?.eventName || "Loading event..."}
+    {ufcEvent?.eventName || "Loading…"}
   </span>
 </div>
       </div>
@@ -540,7 +575,7 @@ const statRows = [
           {/* Tale of the Tape */}
           <div className="card">
             <div className="card-header">
-              <span className="card-label">Tale of the Tape</span>
+              <h2 className="card-label">Tale of the Tape</h2>
               <span className="weight-pill">MMA</span>
             </div>
             <div className="card-body">
@@ -551,13 +586,6 @@ const statRows = [
   )}
   <div className="fighter-name">{selectedFight?.fighterA || "Loading..."}</div>
                   <div className="fighter-record">{fighterAStats?.record || selectedFight?.recordA || "—"}</div>
-<div className="fighter-meta">
-  <span>Age {fighterAStats?.age || "—"}</span>
-  <span>{fighterAStats?.height || "Height —"}</span>
-  <span>{fighterAStats?.reach || "Reach —"}</span>
-  <span>{fighterAStats?.stance || "Stance —"}</span>
-  <span>{fighterAStats?.style || "Style —"}</span>
-</div>
                 </div>
                 <div className="vs-col">
                   <div className="vs-text">vs</div>
@@ -568,14 +596,23 @@ const statRows = [
   )}
   <div className="fighter-name">{selectedFight?.fighterB || "Loading..."}</div>
                   <div className="fighter-record">{fighterBStats?.record || selectedFight?.recordB || "—"}</div>
-<div className="fighter-meta">
-  <span>Age {fighterBStats?.age || "—"}</span>
-  <span>{fighterBStats?.height || "Height —"}</span>
-  <span>{fighterBStats?.reach || "Reach —"}</span>
-  <span>{fighterBStats?.stance || "Stance —"}</span>
-  <span>{fighterBStats?.style || "Style —"}</span>
-</div>
                 </div>
+              </div>
+
+              <div className="tot-compare">
+                {[
+                  { label: "Age", a: fighterAStats?.age, b: fighterBStats?.age },
+                  { label: "Height", a: fighterAStats?.height, b: fighterBStats?.height },
+                  { label: "Reach", a: fighterAStats?.reach, b: fighterBStats?.reach },
+                  { label: "Stance", a: fighterAStats?.stance, b: fighterBStats?.stance },
+                  { label: "Style", a: fighterAStats?.style, b: fighterBStats?.style },
+                ].map((row) => (
+                  <div key={row.label} className="tot-compare-row">
+                    <span className="tot-compare-val">{row.a || "—"}</span>
+                    <span className="tot-compare-label">{row.label}</span>
+                    <span className="tot-compare-val">{row.b || "—"}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -583,17 +620,17 @@ const statRows = [
           {/* Statistical Edge */}
           <div className="card">
             <div className="card-header">
-              <span className="card-label">Statistical Edge</span>
-              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "10px", color: "rgba(255,255,255,0.28)" }}>
-                  <div style={{ width: "10px", height: "3px", borderRadius: "2px", background: "#6C6FE8" }}></div>Advantage
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "10px", color: "rgba(255,255,255,0.28)" }}>
-                  <div style={{ width: "10px", height: "3px", borderRadius: "2px", background: "rgba(108,111,232,0.22)" }}></div>Disadvantage
-                </div>
+              <h2 className="card-label">Statistical Edge</h2>
+              <div className="stat-legend">
+                <span className="stat-legend-item">
+                  <span className="stat-legend-swatch stat-legend-swatch-adv" />Advantage
+                </span>
+                <span className="stat-legend-item">
+                  <span className="stat-legend-swatch stat-legend-swatch-dis" />Disadvantage
+                </span>
               </div>
             </div>
-            <div className="card-body">
+            <div className="card-body" aria-live="polite">
   {metricsStatus === "loading" || metricsStatus === "polling" ? (
     <>
       <div className="stat-grid">
@@ -639,7 +676,7 @@ const statRows = [
       ))}
     </div>
   ) : (
-    <div className="ai-loading">
+    <div className={`ai-loading ${metricsStatus === "timeout" || metricsStatus === "error" ? "ai-loading-error" : ""}`}>
       {metricsStatus === "timeout"
         ? "Still fetching stats for this matchup — this is taking longer than usual"
         : fighterAMetricsState === "syncing" || fighterBMetricsState === "syncing"
@@ -660,13 +697,37 @@ const statRows = [
          {/* AI Fight Breakdown */}
 <div className="card">
   <div className="card-header">
-    <span className="card-label">AI Fight Breakdown</span>
+    <h2 className="card-label">AI Fight Breakdown</h2>
     <span className="ai-models-label">Claude · GPT-4 · Gemini</span>
   </div>
 
-  <div className="card-body">
+  <div className="card-body" aria-live="polite">
     {loadingPrediction ? (
-      <div className="ai-loading">Generating analysis...</div>
+      <div className="skeleton-ai-breakdown">
+        <div className="skeleton-ai-summary">
+          <div className="skeleton-shimmer skeleton-ai-summary-label" />
+          <div className="skeleton-ai-summary-row">
+            <div className="skeleton-shimmer skeleton-ai-summary-val" />
+            <div className="skeleton-shimmer skeleton-ai-summary-val" />
+          </div>
+        </div>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="skeleton-ai-text-block">
+            <div className="skeleton-shimmer skeleton-ai-text-label" />
+            <div className="skeleton-shimmer skeleton-ai-text-line" />
+            <div className="skeleton-shimmer skeleton-ai-text-line skeleton-ai-text-line-short" />
+          </div>
+        ))}
+      </div>
+    ) : predictionError ? (
+      <div className="ai-loading ai-loading-error">
+        Couldn't generate an AI breakdown for this matchup.
+        <div>
+          <button type="button" className="retry-btn" onClick={() => fetchPrediction(selectedFight)}>
+            Retry
+          </button>
+        </div>
+      </div>
     ) : prediction ? (
       <div className="ai-section">
         <div
@@ -678,17 +739,17 @@ const statRows = [
         >
           <div className="ai-block-label">Prediction Summary</div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", gap: "24px" }}>
+          <div className="prediction-headline">
             <div>
               <div className="cons-eyebrow">Winner</div>
-              <div className="pred-name">
+              <div className="prediction-headline-val">
                 {prediction.claude?.predictedWinner || "—"}
               </div>
             </div>
 
-            <div style={{ textAlign: "right" }}>
+            <div className="prediction-headline-right">
               <div className="cons-eyebrow">Confidence</div>
-              <div className="pred-name">
+              <div className="prediction-headline-val">
                 {prediction.claude?.confidence || "—"}%
               </div>
             </div>
@@ -754,39 +815,48 @@ const statRows = [
         <div className="right-col">
           <div className="card">
             <div className="card-header">
-              <span className="card-label">Betting Market</span>
+              <h2 className="card-label">Betting Market</h2>
             </div>
-            <div className="card-body">
+            <div className="card-body" aria-live="polite">
               <div className="odds-col-labels">
                 <span className="odds-col-label">Bookmaker</span>
                 <div style={{ display: "flex", gap: "26px" }}>
                 <span className="odds-col-label">
-  {selectedFight?.fighterA?.split(" ").pop() || "Fighter A"}
+  {shortName(selectedFight?.fighterA, "Fighter A")}
 </span>
 
 <span className="odds-col-label">
-  {selectedFight?.fighterB?.split(" ").pop() || "Fighter B"}
+  {shortName(selectedFight?.fighterB, "Fighter B")}
 </span>
                 </div>
               </div>
-              {selectedFight?.odds?.bookmakers?.length ? (
+              {loadingOdds ? (
+  Array.from({ length: 4 }).map((_, i) => (
+    <div key={i} className="skeleton-odds-book">
+      <div className="skeleton-shimmer skeleton-odds-name" />
+      <div className="skeleton-shimmer skeleton-odds-pair" />
+    </div>
+  ))
+) : selectedFight?.odds?.bookmakers?.length ? (
   selectedFight.odds.bookmakers.map((bookmaker: any, i: number) => {
     const outcomes = bookmaker.markets?.[0]?.outcomes || [];
     const homeOdds = outcomes.find((o: any) => o.name === selectedFight.fighterA);
     const awayOdds = outcomes.find((o: any) => o.name === selectedFight.fighterB);
+    // Favorite/underdog by actual odds sign, not by column position.
+    const homeIsFavorite = (homeOdds?.price ?? 0) < (awayOdds?.price ?? 0);
 
     return (
       <div key={i} className="odds-book">
         <span className="book-name">{bookmaker.title}</span>
         <div className="odds-pair">
-          <span className="odd-fav">{formatAmericanOdds(homeOdds?.price)}</span>
-          <span className="odd-dog">{formatAmericanOdds(awayOdds?.price)}</span>
+          <span className={homeIsFavorite ? "odd-fav" : "odd-dog"}>{formatAmericanOdds(homeOdds?.price)}</span>
+          <span className={homeIsFavorite ? "odd-dog" : "odd-fav"}>{formatAmericanOdds(awayOdds?.price)}</span>
         </div>
       </div>
     );
   })
 ) : (
-  <div className="ai-loading">Odds not available yet</div>
+  <div className="ai-loading">Odds not available for this matchup</div>
 )}
             </div>
           </div>
@@ -794,7 +864,7 @@ const statRows = [
           {/* Value Analysis */}
           <div className="card">
             <div className="card-header">
-              <span className="card-label">Value Analysis</span>
+              <h2 className="card-label">Value Analysis</h2>
             </div>
             <div className="card-body">
             <div className="value-analysis">
@@ -803,7 +873,7 @@ const statRows = [
 
     <div className="value-analysis-row">
       <span className="value-fighter">
-        {selectedFight?.fighterA?.split(" ").slice(-1)[0] || "Fighter A"}
+        {shortName(selectedFight?.fighterA, "Fighter A")}
       </span>
       <span className="value-percentage">
         {homeImplied ? `${homeImplied}%` : "—"}
@@ -812,7 +882,7 @@ const statRows = [
 
     <div className="value-analysis-row">
       <span className="value-fighter">
-        {selectedFight?.fighterB?.split(" ").slice(-1)[0] || "Fighter B"}
+        {shortName(selectedFight?.fighterB, "Fighter B")}
       </span>
       <span className="value-percentage">
         {awayImplied ? `${awayImplied}%` : "—"}
@@ -875,7 +945,7 @@ const statRows = [
           {/* Multi-Model Consensus */}
 <div className="card">
   <div className="card-header">
-    <span className="card-label">AI Consensus</span>
+    <h2 className="card-label">AI Consensus</h2>
   </div>
 
   <div className="card-body">
@@ -901,20 +971,27 @@ const statRows = [
               <div className="cons-pick">{consensusWinner || "Pending AI"}</div>
             </div>
 
-            <div className="cons-pct">
-              {prediction?.consensus?.confidence
-                ? `${prediction.consensus.confidence}%`
-                : "—"}
+            <div className="cons-pct-wrap">
+              <div className="cons-pct">
+                {prediction?.consensus?.confidence
+                  ? `${prediction.consensus.confidence}%`
+                  : "—"}
+              </div>
+              <div className="cons-pct-label">avg. confidence</div>
             </div>
           </div>
 
-          <div className="value-card" style={{ marginTop: "14px" }}>
-            <div className="value-row">
-              <span className="value-label">Model Agreement</span>
-              <span className="value-num">
-                {readyModels.length ? `${agreeingModels.length} / ${readyModels.length}` : "Pending"}
-              </span>
-            </div>
+          <div
+            className={`model-agreement ${
+              readyModels.length > 0 && agreeingModels.length === readyModels.length
+                ? "model-agreement-full"
+                : ""
+            }`}
+          >
+            <span className="model-agreement-label">Model Agreement</span>
+            <span className="model-agreement-val">
+              {readyModels.length ? `${agreeingModels.length} / ${readyModels.length}` : "Pending"}
+            </span>
           </div>
 
           {models.map((m, i) => {
@@ -949,22 +1026,26 @@ const statRows = [
           {/* Fight History */}
           <div className="card">
             <div className="card-header">
-              <span className="card-label">Fight History</span>
+              <h2 className="card-label">Fight History</h2>
             </div>
-            <div className="card-body">
-              <div className="fighter-toggle">
-                <div
+            <div className="card-body" aria-live="polite">
+              <div className="fighter-toggle" role="group" aria-label="Show fight history for">
+                <button
+                  type="button"
                   className={`toggle-btn ${historyToggle === "A" ? "toggle-active" : ""}`}
+                  aria-pressed={historyToggle === "A"}
                   onClick={() => setHistoryToggle("A")}
                 >
-                  {selectedFight?.fighterA?.split(" ").pop() || "Fighter A"}
-                </div>
-                <div
+                  {shortName(selectedFight?.fighterA, "Fighter A")}
+                </button>
+                <button
+                  type="button"
                   className={`toggle-btn ${historyToggle === "B" ? "toggle-active" : ""}`}
+                  aria-pressed={historyToggle === "B"}
                   onClick={() => setHistoryToggle("B")}
                 >
-                  {selectedFight?.fighterB?.split(" ").pop() || "Fighter B"}
-                </div>
+                  {shortName(selectedFight?.fighterB, "Fighter B")}
+                </button>
               </div>
 
               {historyStatus === "loading" || historyStatus === "polling" ? (
@@ -976,11 +1057,7 @@ const statRows = [
                         <div className="skeleton-shimmer skeleton-history-badge" />
                       </div>
                       <div className="skeleton-shimmer skeleton-history-meta" />
-                      <div className="skeleton-history-stats">
-                        <div className="skeleton-shimmer skeleton-hstat" />
-                        <div className="skeleton-shimmer skeleton-hstat" />
-                        <div className="skeleton-shimmer skeleton-hstat" />
-                      </div>
+                      <div className="skeleton-shimmer skeleton-history-result-line" />
                     </div>
                   ))}
                   {historyStatus === "polling" && (
@@ -988,9 +1065,9 @@ const statRows = [
                   )}
                 </>
               ) : historyStatus === "error" ? (
-                <div className="ai-loading">Fight history unavailable</div>
+                <div className="ai-loading ai-loading-error">Fight history unavailable</div>
               ) : historyStatus === "timeout" ? (
-                <div className="ai-loading">
+                <div className="ai-loading ai-loading-error">
                   Recent fight history is still being prepared.
                   <div>
                     <button type="button" className="retry-btn" onClick={() => startMetricsHistoryFetch(selectedFight)}>
@@ -999,7 +1076,10 @@ const statRows = [
                   </div>
                 </div>
               ) : (() => {
-                const activeHistory = historyToggle === "A" ? fighterAHistory : fighterBHistory;
+                // Show the 3 most recent — keeps this card's height in line
+                // with the rest of the right column instead of running well
+                // past the center column.
+                const activeHistory = (historyToggle === "A" ? fighterAHistory : fighterBHistory).slice(0, 3);
                 const activeHistoryState = historyToggle === "A" ? fighterAHistoryState : fighterBHistoryState;
 
                 if (activeHistory.length === 0) {
@@ -1024,19 +1104,10 @@ const statRows = [
                       {fight.event || "Unknown event"}
                       {fight.date ? ` · ${new Date(fight.date).toLocaleDateString()}` : ""}
                     </div>
-                    <div className="history-stats">
-                      <div className="hstat">
-                        <div className="hstat-label">Method</div>
-                        <div className="hstat-val">{fight.method || "—"}</div>
-                      </div>
-                      <div className="hstat">
-                        <div className="hstat-label">Round</div>
-                        <div className="hstat-val">{fight.round || "—"}</div>
-                      </div>
-                      <div className="hstat">
-                        <div className="hstat-label">Time</div>
-                        <div className="hstat-val">{fight.time || "—"}</div>
-                      </div>
+                    <div className="history-result-line">
+                      {fight.method || "—"}
+                      {fight.round ? ` · Round ${fight.round}` : ""}
+                      {fight.time ? ` · ${fight.time}` : ""}
                     </div>
                   </div>
                 ));

@@ -26,7 +26,7 @@ const supabase = createClient(
   }
 );
 
-const PREDICTION_VERSION = "v2";
+const PREDICTION_VERSION = "v4";
 
 function createFightKey(fighterA: string, fighterB: string) {
   const matchup = [fighterA, fighterB].sort().join(" vs ");
@@ -150,16 +150,16 @@ Return ONLY valid JSON in this format:
   "method": "",
   "round": "",
   "bettingLean": "",
-  "keyAdvantages": "Maximum 2 concise sentences. Mention only the most important statistical or stylistic advantages.",
-  "biggestRisk": "Maximum 1 concise sentence.",
-  "fightScript": "Maximum 2 concise sentences describing the most likely fight flow.",
+  "keyAdvantages": "2 sentences, maximum. The single most important statistical or stylistic advantage, stated plainly.",
+  "biggestRisk": "1-2 sentences, maximum. The single biggest risk to this prediction.",
+  "fightScript": "2 sentences, maximum. How the fight most likely unfolds and ends.",
   "whyWrong": [
-    "One concise reason",
-    "One concise reason"
+    "One clear sentence — a specific, concrete reason the prediction could be wrong",
+    "One clear sentence — a different specific, concrete reason the prediction could be wrong"
   ]
 }
 
-Keep the entire response concise. Avoid repeating the same point across multiple fields.`;
+Be concise. Readers do not want to read long paragraphs — every sentence must earn its place. State the point directly with no throat-clearing or repetition across fields.`;
 }
 
 export async function POST(request: Request) {
@@ -197,7 +197,7 @@ const prompt = buildPrompt(body);
     const [claudeResult, gptResult, geminiResult] = await Promise.allSettled([
       anthropic.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 700,
+        max_tokens: 1000,
         messages: [{ role: "user", content: prompt }],
       }),
 

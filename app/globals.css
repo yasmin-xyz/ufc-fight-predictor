@@ -5,9 +5,22 @@
   --accent: #6C6FE8;
   --text-primary: #E8E8EC;
   --text-secondary: rgba(255, 255, 255, 0.4);
-  --text-muted: rgba(255, 255, 255, 0.22);
+  /* Was rgba(255,255,255,0.22) — too low-contrast (~2:1) for text that
+     carries real information against #0F0F11. Kept for truly decorative
+     use only; informational secondary text uses --text-secondary. */
+  --text-muted: rgba(255, 255, 255, 0.4);
   --green: #5DC98A;
   --red: rgba(220, 80, 80, 0.75);
+
+  /* Spacing scale — used for the most-repeated gaps/margins across cards
+     so list rows, section gaps, etc. share one rhythm instead of many
+     near-identical magic numbers. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -27,8 +40,7 @@ body {
 .nav-logo-pickem { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: #6C6FE8; letter-spacing: 0.04em; line-height: 1; }
 .nav-logo-labs { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.5); letter-spacing: 0.18em; text-transform: uppercase; }
 .nav-links { display: flex; align-items: center; gap: 28px; }
-.nav-link { font-size: 13px; color: rgba(255,255,255,0.4); cursor: pointer; transition: color 0.15s; }
-.nav-link:hover { color: rgba(255,255,255,0.75); }
+.nav-link { font-size: 13px; color: rgba(255,255,255,0.28); cursor: default; }
 .nav-badge { font-size: 11px; background: rgba(108,111,232,0.12); color: #8B8FFF; border: 0.5px solid rgba(108,111,232,0.25); padding: 4px 12px; border-radius: 20px; }
 
 /* EVENT BAR */
@@ -37,7 +49,7 @@ body {
 @keyframes pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(108,111,232,0.4); } 50% { opacity: 0.7; box-shadow: 0 0 0 5px rgba(108,111,232,0); } }
 .event-eyebrow { font-size: 10px; color: rgba(255,255,255,0.28); text-transform: uppercase; letter-spacing: 0.1em; }
 .event-name { font-size: 13px; font-weight: 500; color: #E8E8EC; }
-.event-date { font-size: 12px; color: rgba(255,255,255,0.28); margin-left: auto; }
+.event-date { font-size: 12px; color: rgba(255,255,255,0.4); margin-left: auto; }
 
 /* PAGE HEADER */
 .page-header { padding: 28px 40px 0; }
@@ -59,21 +71,23 @@ body {
   transition: color 0.15s, border-color 0.15s;
 }
 .tab.active { color: #E8E8EC; border-bottom-color: #6C6FE8; }
+.tab:focus-visible { outline: 2px solid #6C6FE8; outline-offset: 2px; border-radius: 2px; }
 
 /* LAYOUT */
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 420px;
   gap: 18px;
   padding: 22px 40px 40px;
+  max-width: 1360px;
+  margin: 0 auto;
 }
 
 /* CARD */
 .card { background: #16161A; border: 0.5px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; transition: border-color 0.25s ease, box-shadow 0.25s ease; }
 .card:hover { border-color: rgba(108,111,232,0.35); box-shadow: 0 0 24px rgba(108,111,232,0.08), 0 4px 24px rgba(0,0,0,0.3); }
 .card-header { padding: 13px 18px; border-bottom: 0.5px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; }
-.card-label { font-size: 10px; color: rgba(255,255,255,0.28); text-transform: uppercase; letter-spacing: 0.1em; }
-.card-meta { font-size: 10px; color: rgba(255,255,255,0.2); }
+.card-meta { font-size: 10px; color: rgba(255,255,255,0.32); }
 .card-body { padding: 18px; }
 
 /* FIGHT LIST */
@@ -88,17 +102,27 @@ body {
 .fight-pick-name { font-size: 11px; color: #8B8FFF; }
 .fight-pick-pct { font-size: 11px; color: rgba(255,255,255,0.22); }
 
-/* TALE OF TAPE */
-.tot { display: grid; grid-template-columns: 1fr 90px 1fr; align-items: start; }
+/* TALE OF TAPE — content is inherently compact (small headshots, short
+   stat values), so it's capped and centered instead of stretching to fill
+   the full card width on wide desktop viewports. */
+.tot { display: grid; grid-template-columns: 1fr 90px 1fr; align-items: start; max-width: 480px; margin: 0 auto; }
 .fighter-a { text-align: left; }
 .fighter-b { text-align: right; }
 .fighter-name { font-size: 20px; font-weight: 700; color: #E8E8EC; letter-spacing: -0.025em; }
 .fighter-record { font-size: 12px; color: rgba(255,255,255,0.3); margin-top: 5px; }
-.fighter-meta { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; }
-.fighter-meta span { font-size: 12px; color: rgba(255,255,255,0.38); }
 .vs-col { display: flex; flex-direction: column; align-items: center; padding-top: 8px; }
 .vs-text { font-size: 11px; color: rgba(255,255,255,0.18); text-transform: uppercase; letter-spacing: 0.12em; }
 .weight-pill { font-size: 10px; color: #8B8FFF; background: rgba(108,111,232,0.1); border: 0.5px solid rgba(108,111,232,0.2); padding: 4px 11px; border-radius: 20px; white-space: nowrap; }
+
+/* Tale of the Tape — side-by-side comparison rows, same pattern as
+   Statistical Edge's stat-row so the two most-compared sections feel
+   consistent. */
+.tot-compare { display: flex; flex-direction: column; gap: 10px; margin: var(--space-5) auto 0; padding-top: var(--space-4); border-top: 0.5px solid rgba(255,255,255,0.06); max-width: 480px; }
+.tot-compare-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.tot-compare-val { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.75); font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
+.tot-compare-row .tot-compare-val:first-child { text-align: left; }
+.tot-compare-row .tot-compare-val:last-child { text-align: right; }
+.tot-compare-label { font-size: 10px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.08em; text-align: center; min-width: 62px; }
 
 /* CENTER & RIGHT */
 .center { display: flex; flex-direction: column; gap: 16px; }
@@ -106,13 +130,15 @@ body {
 
 /* ODDS */
 .odds-col-labels { display: flex; justify-content: space-between; padding: 0 2px; margin-bottom: 8px; }
-.odds-col-label { font-size: 10px; color: rgba(255,255,255,0.2); }
-.odds-book { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 7px; margin-bottom: 7px; transition: background 0.15s, border-color 0.15s; }
+.odds-col-label { font-size: 10px; color: rgba(255,255,255,0.4); }
+.odds-book { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 7px; margin-bottom: var(--space-2); transition: background 0.15s, border-color 0.15s; }
 .odds-book:hover { background: rgba(108,111,232,0.05); border-color: rgba(108,111,232,0.2); }
 .book-name { font-size: 12px; color: rgba(255,255,255,0.35); }
 .odds-pair { display: flex; gap: 22px; }
+/* Colored by actual favorite/underdog status (odds sign), not by which
+   column a fighter happens to sit in. */
 .odd-fav { font-size: 13px; font-weight: 600; color: #E8E8EC; }
-.odd-dog { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.28); }
+.odd-dog { font-size: 13px; font-weight: 600; color: #8B8FFF; }
 
 /* STATS */
 .stat-grid { display: flex; flex-direction: column; gap: 18px; }
@@ -121,7 +147,12 @@ body {
 .stat-val-a { color: #8B8FFF; text-align: left; }
 .stat-val-b { color: rgba(255,255,255,0.38); text-align: right; }
 .stat-center { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.stat-name { font-size: 10px; color: rgba(255,255,255,0.28); text-align: center; }
+.stat-name { font-size: 11px; color: rgba(255,255,255,0.42); text-align: center; }
+.stat-legend { display: flex; align-items: center; gap: var(--space-4); }
+.stat-legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: rgba(255,255,255,0.42); }
+.stat-legend-swatch { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
+.stat-legend-swatch-adv { background: #6C6FE8; }
+.stat-legend-swatch-dis { background: rgba(108,111,232,0.28); }
 .bar-track { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; display: flex; align-items: center; width: 100%; }
 .bar-left { display: flex; justify-content: flex-end; width: 50%; height: 4px; overflow: hidden; }
 .bar-right { display: flex; justify-content: flex-start; width: 50%; height: 4px; overflow: hidden; }
@@ -155,16 +186,30 @@ body {
 .skeleton-label { height: 8px; width: 60%; }
 .skeleton-bar { height: 4px; width: 100%; border-radius: 2px; }
 
-.skeleton-history-row { background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 13px; margin-bottom: 9px; }
+.skeleton-history-row { background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 13px; margin-bottom: var(--space-2);}
 .skeleton-history-row:last-child { margin-bottom: 0; }
 .skeleton-history-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .skeleton-history-opponent { height: 13px; width: 40%; }
 .skeleton-history-badge { height: 18px; width: 26px; border-radius: 5px; }
-.skeleton-history-meta { height: 11px; width: 65%; margin-bottom: 10px; }
-.skeleton-history-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
-.skeleton-hstat { height: 38px; border-radius: 6px; }
+.skeleton-history-meta { height: 11px; width: 65%; margin-bottom: 6px; }
+.skeleton-history-result-line { height: 12px; width: 50%; }
 
-.skeleton-caption { font-size: 11px; color: rgba(255,255,255,0.28); text-align: center; margin-top: 12px; }
+.skeleton-caption { font-size: 11px; color: rgba(255,255,255,0.4); text-align: center; margin-top: 12px; }
+
+.skeleton-ai-breakdown { display: flex; flex-direction: column; gap: var(--space-2); }
+.skeleton-ai-summary { padding: 14px; border-radius: 8px; background: rgba(108,111,232,0.06); border: 0.5px solid rgba(108,111,232,0.15); }
+.skeleton-ai-summary-label { height: 10px; width: 40%; margin-bottom: 18px; }
+.skeleton-ai-summary-row { display: flex; justify-content: space-between; gap: 20px; }
+.skeleton-ai-summary-val { height: 22px; width: 35%; }
+.skeleton-ai-text-block { padding: 14px; border-radius: 8px; background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.06); }
+.skeleton-ai-text-label { height: 8px; width: 30%; margin-bottom: 10px; }
+.skeleton-ai-text-line { height: 10px; width: 100%; margin-bottom: 6px; }
+.skeleton-ai-text-line-short { width: 60%; margin-bottom: 0; }
+
+/* Betting Market loading rows */
+.skeleton-odds-book { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 7px; margin-bottom: var(--space-2); }
+.skeleton-odds-name { height: 12px; width: 35%; }
+.skeleton-odds-pair { height: 13px; width: 30%; }
 
 .retry-btn {
   margin-top: 10px;
@@ -179,6 +224,7 @@ body {
   transition: background 0.15s, border-color 0.15s;
 }
 .retry-btn:hover { background: rgba(108,111,232,0.2); border-color: rgba(108,111,232,0.45); }
+.retry-btn:focus-visible { outline: 2px solid #6C6FE8; outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   .skeleton-shimmer {
@@ -194,7 +240,7 @@ body {
 .ai-block:hover { border-color: rgba(108,111,232,0.2); background: rgba(108,111,232,0.03); }
 .ai-block-wrong { border-color: rgba(220,80,80,0.1); background: rgba(220,50,50,0.02); }
 .ai-block-wrong:hover { border-color: rgba(220,80,80,0.2); background: rgba(220,50,50,0.04); }
-.ai-block-label { font-size: 10px; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+.ai-block-label { font-size: 10px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
 .ai-block-label-wrong { color: rgba(220,80,80,0.42); }
 .ai-block-text { font-size: 13px; color: rgba(255,255,255,0.58); line-height: 1.7; }
 .ai-block-text strong { color: #E8E8EC; font-weight: 500; }
@@ -217,28 +263,42 @@ body {
 .edge-pos { font-size: 13px; font-weight: 600; color: #5DC98A; }
 
 /* CONSENSUS */
-.model-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 7px; margin-bottom: 7px; transition: background 0.15s, border-color 0.15s; }
+.model-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 7px; margin-bottom: var(--space-2); transition: background 0.15s, border-color 0.15s; }
 .model-row:hover { background: rgba(108,111,232,0.05); border-color: rgba(108,111,232,0.18); }
 .model-name { font-size: 12px; color: rgba(255,255,255,0.35); display: flex; align-items: center; gap: 8px; }
 .model-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .model-right { text-align: right; }
 .model-pick { font-size: 13px; font-weight: 500; color: #E8E8EC; }
-.model-conf { font-size: 10px; color: rgba(255,255,255,0.24); margin-top: 2px; }
+.model-conf { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 2px; }
 .consensus-result { margin-top: 4px; padding: 13px 15px; background: rgba(108,111,232,0.07); border: 0.5px solid rgba(108,111,232,0.16); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; }
-.cons-eyebrow { font-size: 10px; color: rgba(255,255,255,0.24); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 4px; }
+.cons-eyebrow { font-size: 10px; color: rgba(255,255,255,0.42); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 4px; }
 .cons-pick { font-size: 16px; font-weight: 600; color: #E8E8EC; }
+.cons-pct-wrap { text-align: right; }
 .cons-pct {
   font-size: 20px;
   font-weight: 700;
   color: #6C6FE8;
   letter-spacing: -0.01em;
 }
+/* Distinguishes this from Claude's solo confidence shown in Prediction
+   Summary — this number is the 3-model average, not one model's figure. */
+.cons-pct-label { font-size: 9px; color: rgba(255,255,255,0.32); margin-top: 2px; }
+
+/* Model Agreement — promoted out of a generic value-card into its own
+   treatment since "did the models agree" is one of the most trust-relevant
+   facts in this card. */
+.model-agreement { margin-top: var(--space-3); display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 0.5px solid rgba(255,255,255,0.07); border-radius: 8px; }
+.model-agreement-label { font-size: 12px; color: rgba(255,255,255,0.42); }
+.model-agreement-val { font-size: 14px; font-weight: 700; color: #E8E8EC; }
+.model-agreement-full { background: rgba(93,201,138,0.08); border-color: rgba(93,201,138,0.25); }
+.model-agreement-full .model-agreement-val { color: #5DC98A; }
 
 /* FIGHT HISTORY */
 .fighter-toggle { display: flex; background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 3px; margin-bottom: 14px; }
-.toggle-btn { flex: 1; font-size: 11px; font-weight: 500; padding: 7px; text-align: center; border-radius: 6px; cursor: pointer; color: rgba(255,255,255,0.32); transition: all 0.2s; }
+.toggle-btn { flex: 1; font: inherit; font-size: 11px; font-weight: 500; padding: 9px 7px; text-align: center; border: none; border-radius: 6px; cursor: pointer; color: rgba(255,255,255,0.32); background: transparent; transition: all 0.2s; }
+.toggle-btn:focus-visible { outline: 2px solid #6C6FE8; outline-offset: 2px; }
 .toggle-active { background: rgba(108,111,232,0.18); color: #8B8FFF; }
-.history-fight { background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 13px; margin-bottom: 9px; transition: border-color 0.2s, background 0.2s; }
+.history-fight { background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 13px; margin-bottom: var(--space-2);transition: border-color 0.2s, background 0.2s; }
 .history-fight:last-child { margin-bottom: 0; }
 .history-fight:hover { border-color: rgba(108,111,232,0.2); background: rgba(108,111,232,0.03); }
 .history-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
@@ -246,15 +306,28 @@ body {
 .history-result { font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 5px; }
 .result-w { color: #5DC98A; background: rgba(93,201,138,0.1); border: 0.5px solid rgba(93,201,138,0.2); }
 .result-l { color: rgba(220,80,80,0.75); background: rgba(220,80,80,0.08); border: 0.5px solid rgba(220,80,80,0.15); }
-.history-meta { font-size: 11px; color: rgba(255,255,255,0.24); margin-bottom: 10px; }
-.history-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
-.hstat { background: rgba(255,255,255,0.03); border-radius: 6px; padding: 7px 9px; transition: background 0.15s; }
-.hstat:hover { background: rgba(108,111,232,0.08); }
-.hstat-label { font-size: 9px; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
-.hstat-val { font-size: 13px; font-weight: 600; color: #E8E8EC; }
+.history-meta { font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 4px; }
+.history-result-line { font-size: 12px; color: rgba(255,255,255,0.5); }
 
 /* AI LOADING */
-.ai-loading { font-size: 13px; color: rgba(255,255,255,0.28); padding: 20px 0; text-align: center; font-style: italic; }
+.ai-loading { font-size: 13px; color: rgba(255,255,255,0.4); padding: 20px 0; text-align: center; font-style: italic; }
+
+/* A genuine failure (network error, timed-out sync) should read
+   differently from "still loading" or "nothing to show yet" instead of
+   sharing the exact same neutral italic treatment. */
+.ai-loading-error {
+  font-style: normal;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(220, 80, 80, 0.05);
+  border: 0.5px solid rgba(220, 80, 80, 0.18);
+  border-radius: 8px;
+  padding: 16px;
+}
+.ai-loading-error::before {
+  content: "⚠";
+  margin-right: 6px;
+  color: rgba(220, 80, 80, 0.7);
+}
 .fighter-headshot {
   width: 72px;
   height: 72px;
@@ -468,11 +541,23 @@ body {
     font-size: 13px;
   }
 
-  .fighter-meta {
-    margin-top: 14px;
-    gap: 6px;
+  .tot-compare {
+    gap: 12px;
+    margin-top: var(--space-4);
+  }
+
+  .tot-compare-row {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .tot-compare-val {
     font-size: 13px;
-    line-height: 1.35;
+  }
+
+  .tot-compare-label {
+    font-size: 9px;
+    min-width: 50px;
   }
 
   .fighter-headshot {
@@ -559,8 +644,13 @@ body {
     height: 60px;
   }
 
-  .fighter-meta {
+  .tot-compare-val {
     font-size: 12px;
+  }
+
+  .tot-compare-label {
+    font-size: 8px;
+    min-width: 42px;
   }
 
   .stat-row {
@@ -585,10 +675,13 @@ body {
 }
 /* Compact prediction summary */
 
+/* Method/Round/Betting Lean — deliberately secondary to the headline
+   Winner/Confidence row below, so the eye lands on the pick first. */
 .ai-block .pred-name {
-  font-size: 16px;
-  line-height: 1.35;
-  font-weight: 650;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.68);
 }
 
 .ai-block .cons-eyebrow {
@@ -612,7 +705,7 @@ body {
   }
 
   .ai-block .pred-name {
-    font-size: 15px !important;
+    font-size: 13px;
     line-height: 1.4;
   }
 }
@@ -637,7 +730,6 @@ body {
 
 .prediction-lean .pred-name {
   max-width: 100%;
-  font-size: 14px !important;
   line-height: 1.5;
 }
 
@@ -725,29 +817,40 @@ body {
   letter-spacing: 0.12em;
 }
 
-.prediction-summary .pred-name {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 16px !important;
-  line-height: 1.4;
-  font-weight: 650;
+/* Headline row — Winner + Confidence. This is the single most important
+   fact in the card, so it's sized well above the Method/Round/Lean detail
+   grid beneath it instead of competing with it. */
+.prediction-headline {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-5);
 }
+
+.prediction-headline-right {
+  text-align: right;
+}
+
+.prediction-headline-val {
+  color: #F2F2F5;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
 .prediction-details-grid .value-card {
   min-width: 0;
 }
 
 .prediction-details-grid .pred-name {
-  font-size: 15px !important;
-  line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
 @media (max-width: 768px) {
-  .prediction-summary .pred-name {
-    font-size: 15px !important;
-  }
-
-  .prediction-details-grid .pred-name {
-    font-size: 14px !important;
+  .prediction-headline-val {
+    font-size: 20px;
   }
 }
 .value-analysis {
@@ -798,6 +901,11 @@ body {
 }
 
 .value-ai-row {
+  /* padding insets this row's content 14px from the plain rows above/below
+     it; the matching negative margin cancels that so the percentages all
+     land on the same right edge instead of the AI row's number sitting
+     14px further left than the others. */
+  margin: 0 -14px;
   padding: 14px;
   border: 1px solid rgba(108, 111, 232, 0.22);
   border-radius: 12px;
@@ -848,7 +956,7 @@ body {
 }
 
 .fight-selector-inner {
-  width: min(680px, 100%);
+  width: min(440px, 100%);
 }
 
 .fight-selector label {
