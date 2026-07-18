@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { mergeFightData } from "./lib/mergeFightData";
 import { namesMatchExactly } from "./lib/fighterName";
+import InfoTooltip from "./components/InfoTooltip";
+import ConfidenceMeter from "./components/ConfidenceMeter";
 
 function fightName(fight: any) {
   return `${fight.home_team} vs. ${fight.away_team}`;
@@ -98,6 +100,13 @@ function metricWidth(value: string | number | undefined, max: number) {
   if (!num) return 0;
   return Math.min(Math.round((num / max) * 100), 100);
 }
+function confidenceTier(value: number): "Low" | "Moderate" | "Strong" | "High" {
+  if (value < 55) return "Low";
+  if (value < 70) return "Moderate";
+  if (value < 80) return "Strong";
+  return "High";
+}
+
 function formatPredictedRound(
   method: string | undefined,
   round: string | number | undefined
@@ -127,10 +136,52 @@ function shortName(fullName: string | undefined, fallback = "Fighter") {
   return last;
 }
 
+function shortEventDate(dateStr: string | undefined | null) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// `nowMs` is passed in (rather than read via Date.now() inline) so the
+// display string only changes when the caller's ticking clock advances,
+// not on every unrelated render — the underlying `fetchedAtIso` is the
+// actual source of truth and never resets on its own.
+function formatOddsTimestamp(fetchedAtIso: string | null, nowMs: number): string | null {
+  if (!fetchedAtIso) return null;
+  const fetchedMs = new Date(fetchedAtIso).getTime();
+  if (isNaN(fetchedMs)) return null;
+
+  const diffMinutes = Math.floor((nowMs - fetchedMs) / 60000);
+
+  if (diffMinutes < 1) return "Last updated just now";
+  if (diffMinutes < 60) return `Last updated ${diffMinutes} minute${diffMinutes === 1 ? "" : "s"} ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `Last updated ${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+
+  const date = new Date(fetchedMs);
+  const dateStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const timeStr = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `Odds updated ${dateStr} at ${timeStr}`;
+}
+
 export default function Home() {
   const [odds, setOdds] = useState<any[]>([]);
   const [loadingOdds, setLoadingOdds] = useState(true);
+  const [oddsFetchedAt, setOddsFetchedAt] = useState<string | null>(null);
+  // Ticks once a minute purely so the "Last updated X ago" copy stays
+  // accurate over a long-lived page session — never triggers a re-fetch.
+  const [now, setNow] = useState(() => Date.now());
   const [selectedFight, setSelectedFight] = useState<any>(null);
+  // Purely cosmetic — briefly dims the matchup-dependent cards whenever the
+  // selected fight's identity changes, so the old fight's content never
+  // flashes straight into the new one mid-update. Runs on a fixed timer
+  // independent of how long the underlying data actually takes to arrive
+  // (each card's own skeleton/loading state still governs that), so cached
+  // fights aren't held back and rapid switching just resets this one timer
+  // instead of queuing anything.
+  const [contentDim, setContentDim] = useState(false);
   const [fighterAStats, setFighterAStats] = useState<any>(null);
 const [fighterBStats, setFighterBStats] = useState<any>(null);
   const [ufcEvent, setUfcEvent] = useState<any>(null);
@@ -158,6 +209,8 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
   const requestIdRef = useRef(0);
   const metricsRequestIdRef = useRef(0);
   const metricsPollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fighterStatsRequestIdRef = useRef(0);
+  const assetReadyIdRef = useRef(0);
 
   // Called only with data resolved for THIS exact fight, passed explicitly —
   // never reads fighterAStats/fighterBStats/fighterAMetrics/fighterBMetrics
@@ -306,14 +359,16 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
     async function fetchOdds() {
       try {
         const oddsRes = await fetch("/api/odds");
-        const oddsData = await oddsRes.json();
-        
+        const oddsPayload = await oddsRes.json();
+        const oddsData = oddsPayload.odds || [];
+
         const eventRes = await fetch("/api/ufc-event");
         const eventData = await eventRes.json();
-        
+
         const merged = mergeFightData(eventData.fights, oddsData);
-        
+
         setOdds(oddsData);
+        setOddsFetchedAt(oddsPayload?.fetchedAt || null);
         setUfcEvent(eventData);
         setMergedFights(merged);
 
@@ -348,26 +403,100 @@ selectFight(defaultFight);
     }
     fetchOdds();
   }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const ASSET_READY_TIMEOUT_MS = 2500;
+
+  // Coordinates the matchup crossfade with actual asset readiness instead
+  // of a fixed timer: dims immediately when the fight identity changes,
+  // then waits for fresh Tale-of-the-Tape stats (loadFighters resets these
+  // to null when it starts a new fetch, so this effect re-fires once, then
+  // again when the real data lands) and for both headshot images to
+  // finish loading before revealing the new content. A stale-guard id and
+  // a timeout keep rapid switching or a broken image from blocking it.
+  useEffect(() => {
+    if (!selectedFight) return;
+
+    const readyId = ++assetReadyIdRef.current;
+    setContentDim(true);
+
+    if (!fighterAStats || !fighterBStats) {
+      // Waiting on loadFighters — this effect re-runs once those land.
+      return;
+    }
+
+    const headshotUrls = [fighterAStats.headshot, fighterBStats.headshot].filter(
+      (url): url is string => typeof url === "string" && url.length > 0
+    );
+
+    if (headshotUrls.length === 0) {
+      setContentDim(false);
+      return;
+    }
+
+    let loadedCount = 0;
+    function markLoaded() {
+      loadedCount += 1;
+      if (loadedCount >= headshotUrls.length && readyId === assetReadyIdRef.current) {
+        setContentDim(false);
+      }
+    }
+
+    const images = headshotUrls.map((src) => {
+      const img = new Image();
+      img.onload = markLoaded;
+      img.onerror = markLoaded; // a broken headshot shouldn't block the reveal
+      img.src = src;
+      return img;
+    });
+
+    const timeoutTimer = setTimeout(() => {
+      if (readyId === assetReadyIdRef.current) setContentDim(false);
+    }, ASSET_READY_TIMEOUT_MS);
+
+    return () => {
+      clearTimeout(timeoutTimer);
+      images.forEach((img) => {
+        img.onload = null;
+        img.onerror = null;
+      });
+    };
+  }, [selectedFight?.id, fighterAStats, fighterBStats]);
+
   useEffect(() => {
     if (!selectedFight?.fighterAId || !selectedFight?.fighterBId) return;
-  
+
+    const requestId = ++fighterStatsRequestIdRef.current;
+
+    // Clear immediately rather than leaving the previous fight's stats in
+    // place until the new ones arrive — otherwise the old headshot stays
+    // mounted (and visible) for however long this fetch takes.
+    setFighterAStats(null);
+    setFighterBStats(null);
+
     async function loadFighters() {
       try {
         const [fighterARes, fighterBRes] = await Promise.all([
           fetch(`/api/fighter-stats?id=${selectedFight.fighterAId}`),
           fetch(`/api/fighter-stats?id=${selectedFight.fighterBId}`)
         ]);
-  
+
         const fighterA = await fighterARes.json();
         const fighterB = await fighterBRes.json();
-  
+
+        if (requestId !== fighterStatsRequestIdRef.current) return;
+
         setFighterAStats(fighterA);
         setFighterBStats(fighterB);
       } catch (err) {
         console.error("Failed loading fighter stats", err);
       }
     }
-  
+
     loadFighters();
   }, [selectedFight]);
 
@@ -487,35 +616,6 @@ selectFight(defaultFight);
     };
   }, [selectedFight]);
 
-  useEffect(() => {
-    const wrapper = document.querySelector('.about-wrapper');
-    const popover = document.querySelector('.about-popover');
-    if (!wrapper || !popover) return;
-
-    const isMobile = () => window.innerWidth < 768;
-
-    const handleClick = (e: Event) => {
-      if (isMobile()) {
-        e.stopPropagation();
-        popover.classList.toggle('about-popover-visible');
-      }
-    };
-
-    const handleOutsideClick = (e: Event) => {
-      if (!wrapper.contains(e.target as Node)) {
-        popover.classList.remove('about-popover-visible');
-      }
-    };
-
-    wrapper.addEventListener('click', handleClick);
-    document.addEventListener('click', handleOutsideClick);
-
-    return () => {
-      wrapper.removeEventListener('click', handleClick);
-      document.removeEventListener('click', handleOutsideClick);
-    };
-  }, []);
-
   const ufc329Fights = [
     "Conor McGregor vs. Max Holloway",
   ];
@@ -589,6 +689,8 @@ selectFight(defaultFight);
 
   const isContrarianPick =
     marketGapLabel === "Contrarian pick" || marketGapLabel === "High-risk contrarian pick";
+
+  const oddsTimestampLabel = formatOddsTimestamp(oddsFetchedAt, now);
 
   const hasMetrics =
   metricsStatus === "ready" &&
@@ -666,51 +768,75 @@ const statRows = [
     <main>
      <nav className="nav">
   <div className="nav-logo">
-    <div className="nav-logo-icon">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M3 12L8 4L13 12" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M5.5 8.5H10.5" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-      </svg>
+    <img
+      src="/android-chrome-192x192.png"
+      alt="Pick'em Labs"
+      className="nav-logo-img"
+    />
+    <div className="nav-logo-text">
+      <div className="nav-logo-letters">
+        <span className="nav-ltr" style={{ transform: "rotate(-2deg) translateY(1px)" }}>P</span>
+        <span className="nav-ltr" style={{ transform: "rotate(1.5deg) translateY(-1px)" }}>I</span>
+        <span className="nav-ltr" style={{ transform: "rotate(-1deg) translateY(1px)" }}>C</span>
+        <span className="nav-ltr" style={{ transform: "rotate(2deg) translateY(-1px)" }}>K</span>
+        <span className="nav-ltr" style={{ transform: "rotate(-1.5deg) translateY(0px)", margin: "0 1px" }}>'</span>
+        <span className="nav-ltr" style={{ transform: "rotate(1deg) translateY(1px)" }}>E</span>
+        <span className="nav-ltr" style={{ transform: "rotate(-2deg) translateY(-1px)" }}>M</span>
+      </div>
+      <span className="nav-logo-labs">LABS</span>
     </div>
-    <div className="nav-logo-letters">
-      <span className="nav-ltr" style={{ transform: "rotate(-2deg) translateY(1px)" }}>P</span>
-      <span className="nav-ltr" style={{ transform: "rotate(1.5deg) translateY(-1px)" }}>I</span>
-      <span className="nav-ltr" style={{ transform: "rotate(-1deg) translateY(1px)" }}>C</span>
-      <span className="nav-ltr" style={{ transform: "rotate(2deg) translateY(-1px)" }}>K</span>
-      <span className="nav-ltr" style={{ transform: "rotate(-1.5deg) translateY(0px)", margin: "0 1px" }}>'</span>
-      <span className="nav-ltr" style={{ transform: "rotate(1deg) translateY(1px)" }}>E</span>
-      <span className="nav-ltr" style={{ transform: "rotate(-2deg) translateY(-1px)" }}>M</span>
-    </div>
-    <span className="nav-logo-labs">LABS</span>
   </div>
   <div className="nav-right">
-    <div className="about-wrapper">
-      <button className="about-btn" aria-label="About Pick'em Labs">ⓘ</button>
-      <div className="about-popover">
-        <div className="about-title">Pick'em Labs</div>
-        <p className="about-body">
-          An AI-powered UFC fight analysis tool. For every fight on the card, it pulls live betting odds from major bookmakers, calculates market-implied probabilities, and generates independent fight breakdowns from Claude, GPT-4, and Gemini — then surfaces a consensus prediction and value edge so you can see where the AI disagrees with the market.
-        </p>
-        <div className="about-models">
-          <span className="about-model"><span style={{background:"#CF9B60"}} className="about-dot"></span>Claude</span>
-          <span className="about-model"><span style={{background:"#5DC98A"}} className="about-dot"></span>GPT-4</span>
-          <span className="about-model"><span style={{background:"#5B9EE8"}} className="about-dot"></span>Gemini</span>
-        </div>
+    <InfoTooltip label="Pick'em Labs" width={320}>
+      <div className="about-title">How Pick'em Labs works</div>
+      <p className="about-intro">
+        Pick'em Labs combines fighter statistics, sportsbook odds, recent fight history, and independent predictions from Claude, GPT-4, and Gemini.
+      </p>
+      <ol className="about-steps">
+        <li className="about-step">
+          <span className="about-step-num">1</span>
+          <div>
+            <div className="about-step-title">Compare the matchup</div>
+            <div className="about-step-desc">Review fighter profiles, career metrics, recent history, and sportsbook odds.</div>
+          </div>
+        </li>
+        <li className="about-step">
+          <span className="about-step-num">2</span>
+          <div>
+            <div className="about-step-title">Run independent analysis</div>
+            <div className="about-step-desc">Claude, GPT-4, and Gemini evaluate the matchup separately.</div>
+          </div>
+        </li>
+        <li className="about-step">
+          <span className="about-step-num">3</span>
+          <div>
+            <div className="about-step-title">Find agreement and disagreement</div>
+            <div className="about-step-desc">See the consensus pick, average model confidence, and where the AI view differs from the market.</div>
+          </div>
+        </li>
+      </ol>
+      <div className="about-models">
+        <span className="about-model"><span style={{background:"#CF9B60"}} className="about-dot"></span>Claude</span>
+        <span className="about-model"><span style={{background:"#5DC98A"}} className="about-dot"></span>GPT-4</span>
+        <span className="about-model"><span style={{background:"#5B9EE8"}} className="about-dot"></span>Gemini</span>
       </div>
-    </div>
-    {ufcEvent?.shortName && (
-      <span className="nav-badge" id="event-badge">{ufcEvent.shortName}</span>
+      <div className="about-disclaimer">Informational analysis only. Outcomes are never guaranteed.</div>
+    </InfoTooltip>
+    {ufcEvent && (
+      <span className="nav-badge" id="event-badge">
+        {shortEventDate(selectedFight?.date) || shortEventDate(ufcEvent?.date) || "Upcoming"}
+      </span>
     )}
   </div>
 </nav>
 
 <div className="event-bar">
   <div className="event-dot"></div>
+  <span className="event-eyebrow">Next Event</span>
   {ufcEvent ? (
     <>
-      <span className="event-eyebrow">Next Event</span>
-      <span className="event-name">{ufcEvent.eventName}</span>
-      <span className="event-date">
+      <span className="event-name event-fade-in">{ufcEvent.eventName}</span>
+      <span className="event-date event-fade-in">
         {selectedFight?.date
           ? new Date(selectedFight.date).toLocaleDateString("en-US", {
               month: "long",
@@ -729,18 +855,38 @@ const statRows = [
       </span>
     </>
   ) : (
-    <span className="event-eyebrow">Loading next event…</span>
+    <>
+      <span className="event-skeleton-name skeleton-shimmer" aria-hidden="true" />
+      <span className="event-skeleton-date skeleton-shimmer" aria-hidden="true" />
+    </>
   )}
 </div>
 
-      <div className="page-header">
-        <h1 className="page-title">Fight Analysis</h1>
-        <div className="page-sub">
-  <span className="page-sub-kicker">AI-powered breakdowns</span>
-  <span className="page-sub-event">
-    {ufcEvent?.eventName || "Loading…"}
-  </span>
-</div>
+      <div className="hero">
+        <span className="hero-kicker">Live Fight Intelligence</span>
+
+        <h1 className="hero-headline">
+          <span className="hero-headline-line">Before you place a bet,</span>
+          <span className="hero-headline-line">
+            see what <span className="hero-headline-accent">the models</span> think.
+          </span>
+        </h1>
+
+        <p className="hero-lede">
+          Compare live sportsbook odds, official UFC fighter metrics, fighter history, and three independent AI model perspectives for every matchup.
+        </p>
+
+        <div className="hero-signal">
+          <span className="hero-signal-dots" aria-hidden="true">
+            <span className="hero-signal-dot" style={{ background: "#CF9B60", animationDelay: "0s" }} />
+            <span className="hero-signal-dot" style={{ background: "#5DC98A", animationDelay: "0.35s" }} />
+            <span className="hero-signal-dot" style={{ background: "#5B9EE8", animationDelay: "0.7s" }} />
+          </span>
+          <div className="hero-signal-text">
+            <span className="hero-signal-models">Claude · GPT-4 · Gemini</span>
+            <span className="hero-signal-desc">Analyzing every matchup independently</span>
+          </div>
+        </div>
       </div>
 
       <div className="tabs">
@@ -770,13 +916,7 @@ const statRows = [
 </div>
 <div className="fight-selector">
   <div className="fight-selector-inner">
-    <label htmlFor="fight-select">
-      {activeTab === "main"
-        ? "Main Card"
-        : activeTab === "prelims"
-        ? "Prelims"
-        : "Early Prelims"}
-    </label>
+    <label htmlFor="fight-select">Select a matchup to analyze</label>
 
     <div className="fight-select-wrap">
       <select
@@ -802,7 +942,7 @@ const statRows = [
   </div>
 </div>
 
-      <div className="layout">
+      <div className={`layout ${contentDim ? "layout-transitioning" : ""}`}>
 
         
         {/* CENTER — Analysis */}
@@ -811,14 +951,21 @@ const statRows = [
           {/* Tale of the Tape */}
           <div className="card">
             <div className="card-header">
-              <h2 className="card-label">Tale of the Tape</h2>
+              <div className="card-title-group">
+                <h2 className="card-label">Tale of the Tape</h2>
+                <InfoTooltip label="Tale of the Tape">
+                  Physical comparison of both fighters, including age, height, reach, stance, and professional record.
+                </InfoTooltip>
+              </div>
               <span className="weight-pill">MMA</span>
             </div>
             <div className="card-body card-body-flush">
               <div className="tot">
               <div className="fighter-a">
-  {fighterAStats?.headshot && (
+  {fighterAStats?.headshot ? (
     <img src={fighterAStats.headshot} alt={selectedFight?.fighterA} className="fighter-headshot" />
+  ) : (
+    <div className="fighter-headshot skeleton-shimmer" aria-hidden="true" />
   )}
   <div className="fighter-name">{selectedFight?.fighterA || "Loading..."}</div>
                   <div className="fighter-record">{fighterAStats?.record || selectedFight?.recordA || "—"}</div>
@@ -827,8 +974,10 @@ const statRows = [
                   <div className="vs-text">vs</div>
                 </div>
                 <div className="fighter-b">
-  {fighterBStats?.headshot && (
+  {fighterBStats?.headshot ? (
     <img src={fighterBStats.headshot} alt={selectedFight?.fighterB} className="fighter-headshot" />
+  ) : (
+    <div className="fighter-headshot skeleton-shimmer" aria-hidden="true" />
   )}
   <div className="fighter-name">{selectedFight?.fighterB || "Loading..."}</div>
                   <div className="fighter-record">{fighterBStats?.record || selectedFight?.recordB || "—"}</div>
@@ -856,7 +1005,12 @@ const statRows = [
           {/* Statistical Edge */}
           <div className="card">
             <div className="card-header">
-              <h2 className="card-label">Statistical Edge</h2>
+              <div className="card-title-group">
+                <h2 className="card-label">Fighter Metrics</h2>
+                <InfoTooltip label="Fighter Metrics">
+                  Career striking and grappling statistics sourced from official UFC data to compare each fighter&apos;s historical performance.
+                </InfoTooltip>
+              </div>
               <div className="stat-legend">
                 <span className="stat-legend-item">
                   <span className="stat-legend-swatch stat-legend-swatch-adv" />Advantage
@@ -933,7 +1087,12 @@ const statRows = [
          {/* AI Fight Breakdown */}
 <div className="card">
   <div className="card-header">
-    <h2 className="card-label">AI Fight Breakdown</h2>
+    <div className="card-title-group">
+      <h2 className="card-label">AI Matchup Breakdown</h2>
+      <InfoTooltip label="AI Matchup Breakdown">
+        A detailed explanation of each model&apos;s reasoning, including stylistic matchups, statistical advantages, and potential paths to victory.
+      </InfoTooltip>
+    </div>
     <span className="ai-models-label">Claude · GPT-4 · Gemini</span>
   </div>
 
@@ -988,6 +1147,17 @@ const statRows = [
               <div className="prediction-headline-val">
                 {prediction.claude?.confidence || "—"}%
               </div>
+              {typeof prediction.claude?.confidence === "number" && (
+                <>
+                  <div className="confidence-tier-label">
+                    {confidenceTier(prediction.claude.confidence)} confidence
+                  </div>
+                  <ConfidenceMeter
+                    value={prediction.claude.confidence}
+                    tierLabel={confidenceTier(prediction.claude.confidence)}
+                  />
+                </>
+              )}
             </div>
           </div>
 
@@ -1051,20 +1221,18 @@ const statRows = [
         <div className="right-col">
           <div className="card">
             <div className="card-header">
-              <h2 className="card-label">Betting Market</h2>
+              <div className="card-title-group">
+                <h2 className="card-label">Betting Market</h2>
+                <InfoTooltip label="Betting Market">
+                  Live odds from major sportsbooks. Implied probabilities are calculated from the latest available betting lines.
+                </InfoTooltip>
+              </div>
             </div>
             <div className="card-body" aria-live="polite">
               <div className="odds-col-labels">
                 <span className="odds-col-label">Bookmaker</span>
-                <div style={{ display: "flex", gap: "26px" }}>
-                <span className="odds-col-label">
-  {shortName(selectedFight?.fighterA, "Fighter A")}
-</span>
-
-<span className="odds-col-label">
-  {shortName(selectedFight?.fighterB, "Fighter B")}
-</span>
-                </div>
+                <span className="odds-col-label">{shortName(selectedFight?.fighterA, "Fighter A")}</span>
+                <span className="odds-col-label">{shortName(selectedFight?.fighterB, "Fighter B")}</span>
               </div>
               {loadingOdds ? (
   Array.from({ length: 4 }).map((_, i) => (
@@ -1084,23 +1252,35 @@ const statRows = [
     return (
       <div key={i} className="odds-book">
         <span className="book-name">{bookmaker.title}</span>
-        <div className="odds-pair">
-          <span className={homeIsFavorite ? "odd-fav" : "odd-dog"}>{formatAmericanOdds(homeOdds?.price)}</span>
-          <span className={homeIsFavorite ? "odd-dog" : "odd-fav"}>{formatAmericanOdds(awayOdds?.price)}</span>
-        </div>
+        <span className={homeIsFavorite ? "odd-fav" : "odd-dog"}>{formatAmericanOdds(homeOdds?.price)}</span>
+        <span className={homeIsFavorite ? "odd-dog" : "odd-fav"}>{formatAmericanOdds(awayOdds?.price)}</span>
       </div>
     );
   })
 ) : (
   <div className="ai-loading">Odds not available for this matchup</div>
 )}
+              {oddsTimestampLabel && (
+                <div
+                  className="odds-footer"
+                  title={oddsFetchedAt ? new Date(oddsFetchedAt).toLocaleString() : undefined}
+                >
+                  <span className="odds-footer-icon" aria-hidden="true" />
+                  {oddsTimestampLabel}
+                </div>
+              )}
             </div>
           </div>
 
           {/* Value Analysis */}
           <div className="card">
             <div className="card-header">
-              <h2 className="card-label">Value Analysis</h2>
+              <div className="card-title-group">
+                <h2 className="card-label">AI vs. Market</h2>
+                <InfoTooltip label="AI vs. Market">
+                  Compares the AI consensus with the betting market to highlight where the models agree—or disagree—with current sportsbook expectations.
+                </InfoTooltip>
+              </div>
             </div>
             <div className="card-body">
             <div className="value-analysis">
@@ -1129,20 +1309,27 @@ const statRows = [
   <div className="value-divider" />
 
   <div className="value-section">
-    <div className="value-section-title">Average Model Confidence</div>
-
-    <div className="value-analysis-row value-ai-row">
-      <span className="value-fighter">
-        {prediction?.consensus?.winner || "Pending AI"}
-      </span>
-      <span className="value-percentage">
-        {prediction?.consensus?.confidence
-          ? `${prediction.consensus.confidence}%`
-          : "—"}
-      </span>
+    <div className="value-section-title-row">
+      <div className="value-section-title">Average Model Confidence</div>
+      <InfoTooltip label="Average Model Confidence">
+        Confidence reflects how strongly the agreeing AI models support their prediction. It is not a calibrated probability of winning and should not be interpreted as one.
+      </InfoTooltip>
     </div>
-    <div className="value-caption">
-      Average of each model&apos;s self-reported confidence — not a calibrated win probability.
+
+    <div className="value-ai-box">
+      <div className="value-analysis-row value-ai-row">
+        <span className="value-fighter">
+          {prediction?.consensus?.winner || "Pending AI"}
+        </span>
+        <span className="value-percentage">
+          {prediction?.consensus?.confidence
+            ? `${prediction.consensus.confidence}%`
+            : "—"}
+        </span>
+      </div>
+      <div className="value-caption">
+        Average of each model&apos;s self-reported confidence — not a calibrated win probability.
+      </div>
     </div>
   </div>
 
@@ -1178,7 +1365,12 @@ const statRows = [
           {/* Multi-Model Consensus */}
 <div className="card">
   <div className="card-header">
-    <h2 className="card-label">AI Consensus</h2>
+    <div className="card-title-group">
+      <h2 className="card-label">Model Consensus</h2>
+      <InfoTooltip label="Model Consensus">
+        Claude, GPT-4, and Gemini analyze the matchup independently. Their predictions are combined to show the overall consensus and level of agreement.
+      </InfoTooltip>
+    </div>
   </div>
 
   <div className="card-body">
@@ -1258,7 +1450,12 @@ const statRows = [
           {/* Fight History */}
           <div className="card">
             <div className="card-header">
-              <h2 className="card-label">Fight History</h2>
+              <div className="card-title-group">
+                <h2 className="card-label">Recent Fight History</h2>
+                <InfoTooltip label="Recent Fight History">
+                  Each fighter&apos;s three most recent completed UFC bouts, including opponent, result, and method of victory or defeat.
+                </InfoTooltip>
+              </div>
             </div>
             <div className="card-body" aria-live="polite">
               <div className="fighter-toggle" role="group" aria-label="Show fight history for">

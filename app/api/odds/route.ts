@@ -15,7 +15,13 @@ export async function GET() {
       }
     );
 
-    return NextResponse.json(response.data);
+    return NextResponse.json({
+      odds: response.data,
+      // Generated the moment this request's odds were actually retrieved —
+      // never derived from render time, so the client can show a trustworthy
+      // "last updated" timestamp for this response.
+      fetchedAt: new Date().toISOString(),
+    });
   } catch (error) {
     console.error("Odds API error:", error);
     return NextResponse.json(

@@ -1,0 +1,176 @@
+"use client";
+
+import { useEffect, useId, useRef, useState, type FocusEvent, type PointerEvent } from "react";
+import { createPortal } from "react-dom";
+
+const VIEWPORT_MARGIN = 12;
+const PANEL_GAP = 10;
+const CLOSE_DELAY = 150;
+
+// Reusable info/disclosure trigger used beside section titles and the nav
+// "about" icon. The panel is rendered through a portal into document.body
+// — every card has `overflow: hidden` (to clip content to its rounded
+// corners), which would otherwise clip a panel positioned inside it.
+// Portaling also lets us compute an exact, viewport-clamped position
+// instead of guessing with CSS alone.
+//
+// Desktop uses real hover-intent: entering the trigger OR the panel keeps
+// it open, and leaving both starts a short close delay so the small gap
+// between them doesn't cause flicker. Touch is handled entirely through
+// onClick (pointerType checks skip touch-originated pointer events so a
+// tap doesn't get opened-then-immediately-closed by a synthetic hover).
+export default function InfoTooltip({
+  label,
+  children,
+  width = 240,
+}: {
+  label: string;
+  children: React.ReactNode;
+  width?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0, width, arrowLeft: width / 2 });
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const panelId = useId();
+
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function reposition() {
+      const btn = btnRef.current;
+      if (!btn) return;
+      const rect = btn.getBoundingClientRect();
+
+      const available = window.innerWidth - VIEWPORT_MARGIN * 2;
+      const effectiveWidth = Math.min(width, available);
+
+      const minLeft = window.scrollX + VIEWPORT_MARGIN;
+      const maxLeft = window.scrollX + window.innerWidth - VIEWPORT_MARGIN - effectiveWidth;
+      const left = Math.min(Math.max(rect.left + window.scrollX, minLeft), maxLeft);
+      const top = rect.bottom + window.scrollY + PANEL_GAP;
+
+      const targetCenter = rect.left + window.scrollX + rect.width / 2;
+      const arrowLeft = Math.min(Math.max(targetCenter - left, 14), effectiveWidth - 14);
+
+      setCoords({ top, left, width: effectiveWidth, arrowLeft });
+    }
+
+    reposition();
+    window.addEventListener("resize", reposition);
+
+    function handlePointerDown(e: MouseEvent | TouchEvent) {
+      const target = e.target as Node;
+      if (wrapperRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("resize", reposition);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, width]);
+
+  function clearCloseTimer() {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }
+
+  function openNow() {
+    clearCloseTimer();
+    setOpen(true);
+  }
+
+  function scheduleClose() {
+    clearCloseTimer();
+    closeTimerRef.current = setTimeout(() => setOpen(false), CLOSE_DELAY);
+  }
+
+  // Touch doesn't have real hover — pointerType lets us ignore the
+  // synthetic pointer events some browsers fire on tap, so a tap only
+  // ever goes through onClick below instead of being opened by "hover"
+  // and immediately toggled shut again by the click that follows it.
+  function handlePointerEnter(e: PointerEvent) {
+    if (e.pointerType !== "mouse") return;
+    openNow();
+  }
+
+  function handlePointerLeave(e: PointerEvent) {
+    if (e.pointerType !== "mouse") return;
+    scheduleClose();
+  }
+
+  function handleClick() {
+    clearCloseTimer();
+    setOpen((v) => !v);
+  }
+
+  function handleBlur(e: FocusEvent<HTMLButtonElement>) {
+    if (e.relatedTarget !== panelRef.current) {
+      clearCloseTimer();
+      setOpen(false);
+    }
+  }
+
+  return (
+    <div className="info-tooltip" ref={wrapperRef}>
+      <button
+        ref={btnRef}
+        type="button"
+        className="info-tooltip-btn"
+        aria-label={`${label} info`}
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-describedby={panelId}
+        onClick={handleClick}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
+        onFocus={openNow}
+        onBlur={handleBlur}
+      >
+        i
+      </button>
+
+      {mounted &&
+        createPortal(
+          <div
+            id={panelId}
+            ref={panelRef}
+            role="tooltip"
+            className={`info-tooltip-panel ${open ? "info-tooltip-panel-open" : ""}`}
+            style={{ top: coords.top, left: coords.left, width: coords.width }}
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
+          >
+            <span className="info-tooltip-arrow" style={{ left: coords.arrowLeft }} />
+            {children}
+          </div>,
+          document.body
+        )}
+    </div>
+  );
+}

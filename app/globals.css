@@ -2,7 +2,20 @@
 :root {
   --background: #0F0F11;
   --surface: #16161A;
-  --accent: #6C6FE8;
+
+  /* Unified indigo/purple palette, rooted in the logo's dominant color
+     (#6237B0, sampled directly from the app icon PNG) instead of the
+     lighter, bluer #6C6FE8 the UI drifted toward independently.
+     --accent-muted is lightened (not just the raw logo hue) because the
+     raw purple only hits ~2.5:1 contrast against --background — nowhere
+     near AA for text. */
+  --accent-primary: #6237B0;
+  --accent-primary-hover: #7244C4;
+  --accent-soft: rgba(98, 55, 176, 0.12);
+  --accent-border: rgba(98, 55, 176, 0.35);
+  --accent-muted: #A182D8;
+
+  --accent: var(--accent-primary);
   --text-primary: #E8E8EC;
   --text-secondary: rgba(255, 255, 255, 0.4);
   /* Was rgba(255,255,255,0.22) — too low-contrast (~2:1) for text that
@@ -40,24 +53,30 @@ body {
 .nav-logo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 3px;
 }
 
-.nav-logo-icon {
-  width: 28px;
-  height: 28px;
-  background: #6C6FE8;
-  border-radius: 5px;
+.nav-logo-img {
+  height: 30px;
+  width: 30px;
+  object-fit: contain;
+  /* The wordmark's drop-shadow trails down-right past the letters' own
+     box, pulling their perceived visual center lower than the logo's —
+     nudge the logo down to compensate so the two read as one mark. */
+  transform: translateY(3px);
+}
+
+.nav-logo-text {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  gap: 6px;
 }
 
 .nav-logo-letters {
   display: inline-flex;
   align-items: center;
   gap: 0px;
+  letter-spacing: -0.04em;
 }
 
 .nav-ltr {
@@ -74,17 +93,17 @@ body {
 
 .nav-logo-labs {
   font-family: 'Inter', sans-serif;
-  font-size: 10px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.4);
-  letter-spacing: 0.2em;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.15em;
   text-transform: uppercase;
   margin-top: 4px;
 }
 
 .nav-links { display: flex; align-items: center; gap: 28px; }
 .nav-link { font-size: 13px; color: rgba(255,255,255,0.28); cursor: default; }
-.nav-badge { font-size: 11px; background: rgba(108,111,232,0.12); color: #8B8FFF; border: 0.5px solid rgba(108,111,232,0.25); padding: 4px 12px; border-radius: 20px; }
+.nav-badge { font-size: 11px; background: rgba(98, 55, 176, 0.12); color: var(--accent-muted); border: 0.5px solid rgba(98, 55, 176, 0.25); padding: 4px 12px; border-radius: 20px; }
 
 /* NAV RIGHT */
 .nav-right {
@@ -93,75 +112,9 @@ body {
   gap: 16px;
 }
 
-/* ABOUT TOOLTIP */
-.about-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.about-btn {
-  background: none;
-  border: none;
-  color: rgba(255,255,255,0.35);
-  font-size: 16px;
-  cursor: pointer;
-  padding: 4px;
-  line-height: 1;
-  transition: color 0.15s;
-  display: flex;
-  align-items: center;
-}
-
-.about-btn:hover {
-  color: rgba(255,255,255,0.7);
-}
-
-.about-popover {
-  position: absolute;
-  top: calc(100% + 12px);
-  right: 0;
-  width: 300px;
-  background: #1C1C22;
-  border: 0.5px solid rgba(255,255,255,0.1);
-  border-radius: 10px;
-  padding: 16px;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-4px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
-  z-index: 200;
-}
-
-/* Desktop — hover to open */
-@media (min-width: 768px) {
-  .about-wrapper:hover .about-popover {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-  }
-}
-
-/* Mobile — the icon sits mid-nav, not flush with the viewport edge, so a
-   300px popover anchored with right:0 relative to the icon overflows off
-   the left edge of the screen. Pin it to the viewport instead. */
-@media (max-width: 767px) {
-  .about-popover {
-    position: fixed;
-    top: 66px;
-    left: 16px;
-    right: 16px;
-    width: auto;
-  }
-}
-
-/* Mobile — class toggle to open */
-.about-popover-visible {
-  opacity: 1 !important;
-  pointer-events: auto !important;
-  transform: translateY(0) !important;
-}
-
+/* ABOUT TOOLTIP CONTENT — interaction/positioning now lives entirely in
+   the shared .info-tooltip* rules; these only style the content passed
+   into InfoTooltip as children. */
 .about-title {
   font-size: 13px;
   font-weight: 600;
@@ -170,19 +123,69 @@ body {
   letter-spacing: -0.01em;
 }
 
-.about-body {
+.about-intro {
   font-size: 12px;
   color: rgba(255,255,255,0.5);
-  line-height: 1.65;
-  margin-bottom: 12px;
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+
+.about-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  list-style: none;
+  margin-bottom: 4px;
+}
+
+.about-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.about-step-num {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: rgba(98, 55, 176, 0.16);
+  color: var(--accent-muted);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.about-step-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #E8E8EC;
+  margin-bottom: 2px;
+}
+
+.about-step-desc {
+  font-size: 11.5px;
+  color: rgba(255,255,255,0.42);
+  line-height: 1.5;
 }
 
 .about-models {
   display: flex;
   align-items: center;
   gap: 14px;
+  margin-top: 14px;
   padding-top: 10px;
   border-top: 0.5px solid rgba(255,255,255,0.07);
+}
+
+.about-disclaimer {
+  font-size: 10px;
+  color: rgba(255,255,255,0.28);
+  margin-top: 10px;
+  line-height: 1.5;
 }
 
 .about-model {
@@ -201,21 +204,247 @@ body {
   flex-shrink: 0;
 }
 
+/* INFO TOOLTIP — reusable disclosure button used beside section titles */
+.info-tooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.info-tooltip-btn {
+  background: none;
+  border: 0.5px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.38);
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-style: italic;
+  font-weight: 700;
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.info-tooltip-btn:hover {
+  color: rgba(255, 255, 255, 0.75);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.info-tooltip-btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.info-tooltip-panel {
+  position: absolute;
+  background: #1C1C22;
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: 400;
+  font-style: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.68);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 300;
+}
+
+.info-tooltip-panel-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* Small caret pointing from the panel back up at its trigger — its `left`
+   is computed in JS from the trigger's actual position, since the panel
+   itself may have shifted to stay inside the viewport. */
+.info-tooltip-arrow {
+  position: absolute;
+  top: -5px;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  background: #1C1C22;
+  border-left: 0.5px solid rgba(255, 255, 255, 0.1);
+  border-top: 0.5px solid rgba(255, 255, 255, 0.1);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+/* Groups a section title with its info button so the button sits
+   immediately beside the text instead of at the far edge of the header. */
+.card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.value-section-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* EVENT BAR */
-.event-bar { background: rgba(108,111,232,0.04); border-bottom: 0.5px solid rgba(108,111,232,0.1); padding: 11px 40px; display: flex; align-items: center; gap: 12px; }
-.event-dot { width: 7px; height: 7px; border-radius: 50%; background: #6C6FE8; flex-shrink: 0; animation: pulse 2.5s ease-in-out infinite; }
-@keyframes pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(108,111,232,0.4); } 50% { opacity: 0.7; box-shadow: 0 0 0 5px rgba(108,111,232,0); } }
+.event-bar { background: rgba(98, 55, 176, 0.04); border-bottom: 0.5px solid rgba(98, 55, 176, 0.1); padding: 11px 40px; display: flex; align-items: center; gap: 12px; }
+.event-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-primary); flex-shrink: 0; animation: pulse 2.5s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(98, 55, 176, 0.4); } 50% { opacity: 0.7; box-shadow: 0 0 0 5px rgba(98, 55, 176, 0); } }
 .event-eyebrow { font-size: 10px; color: rgba(255,255,255,0.28); text-transform: uppercase; letter-spacing: 0.1em; }
 .event-name { font-size: 13px; font-weight: 500; color: #E8E8EC; }
 .event-date { font-size: 12px; color: rgba(255,255,255,0.4); margin-left: auto; }
 
-/* PAGE HEADER */
-.page-header { padding: 28px 40px 0; }
-.page-title { font-size: 26px; font-weight: 600; color: #E8E8EC; letter-spacing: -0.025em; }
-.page-sub { font-size: 13px; color: rgba(255,255,255,0.3); margin-top: 5px; }
+/* Reserve the same footprint as the real text so there's no layout shift
+   once it loads, without ever showing literal "Loading..." copy. */
+.event-skeleton-name { display: inline-block; height: 13px; width: 220px; border-radius: 4px; }
+.event-skeleton-date { display: inline-block; height: 12px; width: 170px; border-radius: 4px; margin-left: auto; }
+
+.event-fade-in {
+  animation: eventContentIn 0.4s ease both;
+}
+
+@keyframes eventContentIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .event-fade-in {
+    animation: none;
+  }
+}
+
+/* HERO */
+.hero { padding: 26px 40px 4px; }
+
+.hero-kicker {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.hero-headline {
+  margin-top: 14px;
+  /* Fluidly scales ~27px (small phone) -> ~58px (desktop) -> capped at
+     64px. The mobile floor is lower than a first pass targeted (~38px)
+     because "see what the models think." — at true display sizes — only
+     fits a 375px viewport on one line below ~28px; going bigger forced a
+     3rd wrapped line, breaking the required two-line rhythm. Tablet/
+     desktop have room to reach full hero scale. */
+  font-size: clamp(27px, 3.4vw + 14px, 64px);
+  font-weight: 800;
+  color: #F2F2F5;
+  letter-spacing: -0.035em;
+  /* Tight at desktop's large display size (reads as one cohesive title);
+     mobile keeps a bit more room since descenders/ascenders sit much
+     closer together in absolute pixels at the smaller clamp() size. */
+  line-height: 0.98;
+}
+
+/* Runs once on initial mount only — a plain CSS animation (no JS-driven
+   state) that never replays on fight switches or other re-renders, since
+   this element is never unmounted/remounted by them. Slow and deliberate
+   on purpose — this is the one moment on the page meant to feel cinematic
+   rather than functional. */
+.hero-headline-line {
+  display: block;
+  animation: heroLineIn 1.05s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hero-headline-line:nth-child(2) {
+  animation-delay: 0.22s;
+}
+
+@keyframes heroLineIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-headline-line {
+    animation: none;
+  }
+}
+
+.hero-headline-accent {
+  color: var(--accent-muted);
+}
+
+.hero-lede {
+  font-size: 14.5px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.6;
+  margin-top: 14px;
+  max-width: 560px;
+}
+
+.hero-signal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.hero-signal-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hero-signal-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: heroSignalPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes heroSignalPulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.hero-signal-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hero-signal-models {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.02em;
+}
+
+.hero-signal-desc {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.3);
+}
 
 /* TABS */
-.tabs { display: flex; border-bottom: 0.5px solid rgba(255,255,255,0.07); padding: 0 40px; margin-top: 20px; }
+.tabs { display: flex; border-bottom: 0.5px solid rgba(255,255,255,0.07); padding: 0 40px; margin-top: 16px; }
 .tab {
   padding: 10px 0;
   margin-right: 32px;
@@ -228,8 +457,8 @@ body {
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 }
-.tab.active { color: #E8E8EC; border-bottom-color: #6C6FE8; }
-.tab:focus-visible { outline: 2px solid #6C6FE8; outline-offset: 2px; border-radius: 2px; }
+.tab.active { color: #E8E8EC; border-bottom-color: var(--accent-primary); }
+.tab:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; border-radius: 2px; }
 
 /* LAYOUT */
 .layout {
@@ -239,11 +468,30 @@ body {
   padding: 22px 40px 40px;
   max-width: 1360px;
   margin: 0 auto;
+  opacity: 1;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Dim applied while a newly-selected fight's headshots/Tale-of-the-Tape
+   data are still arriving — held until the JS side confirms both
+   headshots have actually loaded (or times out), then released into the
+   slower fade-in above. Each card's own skeleton/loading state (untouched)
+   fills in beneath this while it's held. */
+.layout-transitioning {
+  opacity: 0.45;
+  transition: opacity 0.26s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layout,
+  .layout-transitioning {
+    transition: none;
+  }
 }
 
 /* CARD */
 .card { background: #16161A; border: 0.5px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; transition: border-color 0.25s ease, box-shadow 0.25s ease; }
-.card:hover { border-color: rgba(108,111,232,0.35); box-shadow: 0 0 24px rgba(108,111,232,0.08), 0 4px 24px rgba(0,0,0,0.3); }
+.card:hover { border-color: rgba(98, 55, 176, 0.35); box-shadow: 0 0 24px rgba(98, 55, 176, 0.08), 0 4px 24px rgba(0,0,0,0.3); }
 .card-header { padding: 13px 18px; border-bottom: 0.5px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; }
 .card-meta { font-size: 10px; color: rgba(255,255,255,0.32); }
 .card-body { padding: 18px; }
@@ -251,14 +499,14 @@ body {
 
 /* FIGHT LIST */
 .fight-item:last-child { border-bottom: none; }
-.fight-item:hover { background: rgba(108,111,232,0.04); border-left-color: rgba(108,111,232,0.4); }
-.fight-item.active { background: rgba(108,111,232,0.07); border-left-color: #6C6FE8; padding-left: 16px; }
+.fight-item:hover { background: rgba(98, 55, 176, 0.04); border-left-color: rgba(98, 55, 176, 0.4); }
+.fight-item.active { background: rgba(98, 55, 176, 0.07); border-left-color: var(--accent-primary); padding-left: 16px; }
 .fight-names { font-size: 12px; font-weight: 500; color: #E8E8EC; }
 .fight-meta { display: flex; align-items: center; gap: 7px; margin-top: 4px; }
 .fight-wc { font-size: 10px; color: rgba(255,255,255,0.28); }
-.fight-tag { font-size: 9px; color: #8B8FFF; background: rgba(108,111,232,0.1); border: 0.5px solid rgba(108,111,232,0.2); padding: 2px 7px; border-radius: 8px; }
+.fight-tag { font-size: 9px; color: var(--accent-muted); background: rgba(98, 55, 176, 0.1); border: 0.5px solid rgba(98, 55, 176, 0.2); padding: 2px 7px; border-radius: 8px; }
 .fight-pick-row { display: flex; justify-content: space-between; margin-top: 6px; }
-.fight-pick-name { font-size: 11px; color: #8B8FFF; }
+.fight-pick-name { font-size: 11px; color: var(--accent-muted); }
 .fight-pick-pct { font-size: 11px; color: rgba(255,255,255,0.22); }
 
 /* TALE OF TAPE — content is inherently compact (small headshots, short
@@ -271,7 +519,7 @@ body {
 .fighter-record { font-size: 12px; color: rgba(255,255,255,0.3); margin-top: 5px; }
 .vs-col { display: flex; flex-direction: column; align-items: center; padding-top: 8px; }
 .vs-text { font-size: 11px; color: rgba(255,255,255,0.18); text-transform: uppercase; letter-spacing: 0.12em; }
-.weight-pill { font-size: 10px; color: #8B8FFF; background: rgba(108,111,232,0.1); border: 0.5px solid rgba(108,111,232,0.2); padding: 4px 11px; border-radius: 20px; white-space: nowrap; }
+.weight-pill { font-size: 10px; color: var(--accent-muted); background: rgba(98, 55, 176, 0.1); border: 0.5px solid rgba(98, 55, 176, 0.2); padding: 4px 11px; border-radius: 20px; white-space: nowrap; }
 
 /* Tale of the Tape — side-by-side comparison rows, same pattern as
    Statistical Edge's stat-row so the two most-compared sections feel
@@ -287,47 +535,122 @@ body {
 .center { display: flex; flex-direction: column; gap: 16px; }
 .right-col { display: flex; flex-direction: column; gap: 16px; }
 
-/* ODDS */
-.odds-col-labels { display: flex; justify-content: space-between; padding: 0 2px; margin-bottom: 8px; }
+/* ODDS — header and every row share one grid-template-columns so the
+   bookmaker column, and both odds columns, land at identical x-positions
+   down the whole table regardless of how wide any given value is. */
+.odds-col-labels,
+.odds-book {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px 56px;
+  align-items: center;
+  gap: 10px;
+}
+
+.odds-col-labels {
+  padding: 0 12px;
+  margin-bottom: 8px;
+}
+
 .odds-col-label { font-size: 10px; color: rgba(255,255,255,0.4); }
-.odds-book { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 7px; margin-bottom: var(--space-2); transition: background 0.15s, border-color 0.15s; }
-.odds-book:hover { background: rgba(108,111,232,0.05); border-color: rgba(108,111,232,0.2); }
-.book-name { font-size: 12px; color: rgba(255,255,255,0.35); }
-.odds-pair { display: flex; gap: 22px; }
+.odds-col-label:nth-child(2),
+.odds-col-label:nth-child(3) {
+  text-align: right;
+}
+
+.odds-book { padding: 10px 12px; background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 7px; margin-bottom: var(--space-2); transition: background 0.15s, border-color 0.15s; }
+.odds-book:hover { background: rgba(98, 55, 176, 0.05); border-color: rgba(98, 55, 176, 0.2); }
+.book-name { font-size: 12px; color: rgba(255,255,255,0.35); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* Colored by actual favorite/underdog status (odds sign), not by which
-   column a fighter happens to sit in. */
-.odd-fav { font-size: 13px; font-weight: 600; color: #E8E8EC; }
-.odd-dog { font-size: 13px; font-weight: 600; color: #8B8FFF; }
+   column a fighter happens to sit in. Tabular figures keep every row's
+   digits the same width so the +/- sign lines up column to column. */
+.odd-fav, .odd-dog {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.odd-fav { color: #E8E8EC; }
+.odd-dog { color: var(--accent-muted); }
+
+.odds-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 0.5px solid rgba(255, 255, 255, 0.06);
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.32);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Minimal clock face built from borders/pseudo-elements — no icon
+   dependency, and it stays quiet enough not to compete with the odds. */
+.odds-footer-icon {
+  position: relative;
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.odds-footer-icon::before,
+.odds-footer-icon::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.odds-footer-icon::before {
+  top: 1px;
+  left: 50%;
+  width: 1px;
+  height: 2.5px;
+  transform: translateX(-50%);
+}
+
+.odds-footer-icon::after {
+  top: 50%;
+  left: 50%;
+  width: 2.5px;
+  height: 1px;
+  transform-origin: left center;
+  transform: translateY(-50%) rotate(35deg);
+}
 
 /* STATS */
 .stat-grid { display: flex; flex-direction: column; gap: 18px; }
 .stat-row { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 12px; }
 .stat-val { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.stat-val-a { color: #8B8FFF; text-align: left; }
+.stat-val-a { color: var(--accent-muted); text-align: left; }
 .stat-val-b { color: rgba(255,255,255,0.38); text-align: right; }
 .stat-center { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .stat-name { font-size: 11px; color: rgba(255,255,255,0.42); text-align: center; }
 .stat-legend { display: flex; align-items: center; gap: var(--space-4); }
 .stat-legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: rgba(255,255,255,0.42); }
 .stat-legend-swatch { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
-.stat-legend-swatch-adv { background: #6C6FE8; }
-.stat-legend-swatch-dis { background: rgba(108,111,232,0.28); }
+.stat-legend-swatch-adv { background: var(--accent-primary); }
+.stat-legend-swatch-dis { background: rgba(98, 55, 176, 0.28); }
 .bar-track { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; display: flex; align-items: center; width: 100%; }
 .bar-left { display: flex; justify-content: flex-end; width: 50%; height: 4px; overflow: hidden; }
 .bar-right { display: flex; justify-content: flex-start; width: 50%; height: 4px; overflow: hidden; }
-.bar-fill-a { height: 4px; border-radius: 2px 0 0 2px; background: #6C6FE8; flex-shrink: 0; }
-.bar-fill-a.dis { background: rgba(108,111,232,0.35); }
-.bar-fill-b { height: 4px; border-radius: 0 2px 2px 0; background: rgba(108,111,232,0.35); flex-shrink: 0; }
-.bar-fill-b.adv { background: #6C6FE8; }
+.bar-fill-a { height: 4px; border-radius: 2px 0 0 2px; background: var(--accent-primary); flex-shrink: 0; }
+.bar-fill-a.dis { background: rgba(98, 55, 176, 0.35); }
+.bar-fill-b { height: 4px; border-radius: 0 2px 2px 0; background: rgba(98, 55, 176, 0.35); flex-shrink: 0; }
+.bar-fill-b.adv { background: var(--accent-primary); }
 
 /* SKELETON LOADING */
 .skeleton-shimmer {
   border-radius: 4px;
   background: linear-gradient(
     100deg,
-    rgba(108,111,232,0.08) 30%,
-    rgba(108,111,232,0.18) 50%,
-    rgba(108,111,232,0.08) 70%
+    rgba(98, 55, 176, 0.08) 30%,
+    rgba(98, 55, 176, 0.18) 50%,
+    rgba(98, 55, 176, 0.08) 70%
   );
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.6s ease-in-out infinite;
@@ -356,7 +679,7 @@ body {
 .skeleton-caption { font-size: 11px; color: rgba(255,255,255,0.4); text-align: center; margin-top: 12px; }
 
 .skeleton-ai-breakdown { display: flex; flex-direction: column; gap: var(--space-2); }
-.skeleton-ai-summary { padding: 14px; border-radius: 8px; background: rgba(108,111,232,0.06); border: 0.5px solid rgba(108,111,232,0.15); }
+.skeleton-ai-summary { padding: 14px; border-radius: 8px; background: rgba(98, 55, 176, 0.06); border: 0.5px solid rgba(98, 55, 176, 0.15); }
 .skeleton-ai-summary-label { height: 10px; width: 40%; margin-bottom: 18px; }
 .skeleton-ai-summary-row { display: flex; justify-content: space-between; gap: 20px; }
 .skeleton-ai-summary-val { height: 22px; width: 35%; }
@@ -375,28 +698,32 @@ body {
   padding: 7px 16px;
   font-size: 12px;
   font-weight: 500;
-  color: #8B8FFF;
-  background: rgba(108,111,232,0.12);
-  border: 0.5px solid rgba(108,111,232,0.3);
+  color: var(--accent-muted);
+  background: rgba(98, 55, 176, 0.12);
+  border: 0.5px solid rgba(98, 55, 176, 0.3);
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
-.retry-btn:hover { background: rgba(108,111,232,0.2); border-color: rgba(108,111,232,0.45); }
-.retry-btn:focus-visible { outline: 2px solid #6C6FE8; outline-offset: 2px; }
+.retry-btn:hover { background: rgba(98, 55, 176, 0.2); border-color: rgba(98, 55, 176, 0.45); }
+.retry-btn:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   .skeleton-shimmer {
     animation: none;
-    background: rgba(108,111,232,0.12);
+    background: rgba(98, 55, 176, 0.12);
+  }
+
+  .hero-signal-dot {
+    animation: none;
   }
 }
 
 /* AI BREAKDOWN */
-.ai-models-label { font-size: 10px; color: rgba(108,111,232,0.55); }
+.ai-models-label { font-size: 10px; color: rgba(98, 55, 176, 0.55); }
 .ai-section { display: flex; flex-direction: column; gap: 10px; }
 .ai-block { background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 14px; transition: border-color 0.2s, background 0.2s; }
-.ai-block:hover { border-color: rgba(108,111,232,0.2); background: rgba(108,111,232,0.03); }
+.ai-block:hover { border-color: rgba(98, 55, 176, 0.2); background: rgba(98, 55, 176, 0.03); }
 .ai-block-wrong { border-color: rgba(220,80,80,0.1); background: rgba(220,50,50,0.02); }
 .ai-block-wrong:hover { border-color: rgba(220,80,80,0.2); background: rgba(220,50,50,0.04); }
 .ai-block-label { font-size: 10px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
@@ -405,9 +732,9 @@ body {
 .ai-block-text strong { color: #E8E8EC; font-weight: 500; }
 .pred-row { display: flex; align-items: center; justify-content: space-between; }
 .pred-name { font-size: 17px; font-weight: 600; color: #E8E8EC; letter-spacing: -0.01em; }
-.pred-conf { font-size: 13px; color: #8B8FFF; }
+.pred-conf { font-size: 13px; color: var(--accent-muted); }
 .conf-track { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; margin-top: 11px; overflow: hidden; }
-.conf-fill { height: 3px; border-radius: 2px; background: linear-gradient(90deg, #6C6FE8, #9B8FFF); }
+.conf-fill { height: 3px; border-radius: 2px; background: linear-gradient(90deg, var(--accent-primary), #9B8FFF); }
 .wrong-list { display: flex; flex-direction: column; gap: 7px; }
 .wrong-item { font-size: 12px; color: rgba(255,255,255,0.42); display: flex; gap: 9px; line-height: 1.55; }
 .wrong-dot { color: rgba(220,80,80,0.5); flex-shrink: 0; }
@@ -417,26 +744,26 @@ body {
 .value-row { display: flex; justify-content: space-between; align-items: center; }
 .value-label { font-size: 12px; color: rgba(255,255,255,0.35); }
 .value-num { font-size: 13px; font-weight: 600; color: #E8E8EC; }
-.edge-divider { border: none; border-top: 0.5px solid rgba(108,111,232,0.12); margin: 4px 0; }
+.edge-divider { border: none; border-top: 0.5px solid rgba(98, 55, 176, 0.12); margin: 4px 0; }
 .edge-neg { font-size: 13px; font-weight: 600; color: rgba(220,80,80,0.65); }
 .edge-pos { font-size: 13px; font-weight: 600; color: #5DC98A; }
 
 /* CONSENSUS */
 .model-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 7px; margin-bottom: var(--space-2); transition: background 0.15s, border-color 0.15s; }
-.model-row:hover { background: rgba(108,111,232,0.05); border-color: rgba(108,111,232,0.18); }
+.model-row:hover { background: rgba(98, 55, 176, 0.05); border-color: rgba(98, 55, 176, 0.18); }
 .model-name { font-size: 12px; color: rgba(255,255,255,0.35); display: flex; align-items: center; gap: 8px; }
 .model-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .model-right { text-align: right; }
 .model-pick { font-size: 13px; font-weight: 500; color: #E8E8EC; }
 .model-conf { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 2px; }
-.consensus-result { margin-top: 4px; padding: 13px 15px; background: rgba(108,111,232,0.07); border: 0.5px solid rgba(108,111,232,0.16); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; }
+.consensus-result { margin-top: 4px; padding: 13px 15px; background: rgba(98, 55, 176, 0.07); border: 0.5px solid rgba(98, 55, 176, 0.16); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; }
 .cons-eyebrow { font-size: 10px; color: rgba(255,255,255,0.42); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 4px; }
 .cons-pick { font-size: 16px; font-weight: 600; color: #E8E8EC; }
 .cons-pct-wrap { text-align: right; }
 .cons-pct {
   font-size: 20px;
   font-weight: 700;
-  color: #6C6FE8;
+  color: var(--accent-primary);
   letter-spacing: -0.01em;
 }
 /* Distinguishes this from Claude's solo confidence shown in Prediction
@@ -455,11 +782,11 @@ body {
 /* FIGHT HISTORY */
 .fighter-toggle { display: flex; background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 3px; margin-bottom: 14px; }
 .toggle-btn { flex: 1; font: inherit; font-size: 11px; font-weight: 500; padding: 9px 7px; text-align: center; border: none; border-radius: 6px; cursor: pointer; color: rgba(255,255,255,0.32); background: transparent; transition: all 0.2s; }
-.toggle-btn:focus-visible { outline: 2px solid #6C6FE8; outline-offset: 2px; }
-.toggle-active { background: rgba(108,111,232,0.18); color: #8B8FFF; }
+.toggle-btn:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+.toggle-active { background: rgba(98, 55, 176, 0.18); color: var(--accent-muted); }
 .history-fight { background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 13px; margin-bottom: var(--space-2);transition: border-color 0.2s, background 0.2s; }
 .history-fight:last-child { margin-bottom: 0; }
-.history-fight:hover { border-color: rgba(108,111,232,0.2); background: rgba(108,111,232,0.03); }
+.history-fight:hover { border-color: rgba(98, 55, 176, 0.2); background: rgba(98, 55, 176, 0.03); }
 .history-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
 .history-opponent { font-size: 13px; font-weight: 500; color: #E8E8EC; }
 .history-result { font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 5px; }
@@ -492,7 +819,7 @@ body {
   height: 72px;
   object-fit: cover;
   border-radius: 999px;
-  border: 1px solid rgba(108, 111, 232, 0.35);
+  border: 1px solid rgba(98, 55, 176, 0.35);
   margin-bottom: 14px;
   background: rgba(255,255,255,0.04);
 }
@@ -600,20 +927,41 @@ body {
     line-height: 1.4;
   }
 
-  /* Page title */
-
-  .page-header {
-    padding: 34px 16px 22px;
+  .event-skeleton-name {
+    min-width: 0;
+    width: 160px;
   }
 
-  .page-title {
-    font-size: 30px;
+  .event-skeleton-date {
+    grid-column: 2 / -1;
+    margin-left: 0;
+    width: 140px;
   }
 
-  .page-sub {
-    margin-top: 8px;
-    font-size: 14px;
-    line-height: 1.5;
+  /* Hero */
+
+  .hero {
+    padding: 22px 16px 6px;
+  }
+
+  .hero-kicker {
+    font-size: 10px;
+  }
+
+  .hero-headline {
+    /* Font-size itself is handled by the clamp() in the base rule — this
+       just tightens the space above it for the mobile padding scale. */
+    margin-top: 10px;
+    line-height: 1.05;
+  }
+
+  .hero-lede {
+    font-size: 13.5px;
+    margin-top: 12px;
+  }
+
+  .hero-signal {
+    margin-top: 16px;
   }
 
   /* Card tabs */
@@ -742,7 +1090,8 @@ body {
 
   /* Betting odds */
 
-  .odds-col-labels {
+  .odds-col-labels,
+  .odds-book {
     gap: 8px;
   }
 
@@ -752,10 +1101,6 @@ body {
 
   .book-name {
     font-size: 13px;
-  }
-
-  .odds-pair {
-    gap: 18px;
   }
 
   /* Prediction summary */
@@ -867,8 +1212,15 @@ body {
 .prediction-details-grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 18px;
+  gap: 28px;
+  margin-top: 28px;
+}
+
+/* The flex gap on .value-card is the single source of label-to-value
+   spacing here — cancel the general .cons-eyebrow margin-bottom so it
+   doesn't stack on top of it and loosen the group. */
+.prediction-details-grid .cons-eyebrow {
+  margin-bottom: 0;
 }
 
 .prediction-method {
@@ -891,7 +1243,8 @@ body {
 @media (max-width: 768px) {
   .prediction-details-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    gap: 18px;
+    margin-top: 24px;
   }
 
   .prediction-method,
@@ -909,35 +1262,8 @@ body {
       padding-top: 16px;
     }
   }
-.page-sub {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.page-sub-kicker {
-  color: rgba(255, 255, 255, 0.38);
-  font-size: 14px;
-}
-
-.page-sub-event {
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 16px;
-  font-weight: 500;
-}
-
-@media (max-width: 768px) {
-  .page-sub-kicker {
-    font-size: 13px;
-  }
-
-  .page-sub-event {
-    font-size: 15px;
-    line-height: 1.45;
-  }
-}
 .card-label {
-  color: #A7AAFF;
+  color: var(--accent-muted);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: .16em;
@@ -958,7 +1284,7 @@ body {
   }
 }
 .prediction-summary .ai-block-label {
-  color: #8d8fff;
+  color: var(--accent-muted);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -970,6 +1296,14 @@ body {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.12em;
+}
+
+/* Winner/Confidence use plain divs (no flex gap), so the label-to-value
+   spacing here is margin-based — tightened so each label visually "owns"
+   its value directly beneath it, distinct from the larger gap separating
+   Winner from Confidence entirely (.prediction-headline's own gap). */
+.prediction-headline .cons-eyebrow {
+  margin-bottom: 8px;
 }
 
 /* Headline row — Winner + Confidence. This is the single most important
@@ -993,6 +1327,80 @@ body {
   line-height: 1.25;
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
+}
+
+.confidence-tier-label {
+  margin-top: 2px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.confidence-rail {
+  width: 240px;
+  max-width: 100%;
+  margin-top: 8px;
+  margin-left: auto;
+}
+
+.confidence-rail-track {
+  position: relative;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.confidence-rail-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent-primary);
+  width: 0%;
+  transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Pinned exactly at the confidence percentage — the fill alone only
+   communicates magnitude, this makes the specific value legible at a
+   glance. Bordered in the page background so it reads as a distinct pin
+   against both the filled and unfilled portions of the track. */
+.confidence-rail-marker {
+  position: absolute;
+  top: 50%;
+  left: 0%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  border: 2px solid #0F0F11;
+  transform: translate(-50%, -50%);
+  transition: left 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.confidence-rail-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 7px;
+  font-size: 9px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.38);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confidence-rail-fill,
+  .confidence-rail-marker {
+    transition: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .confidence-rail {
+    width: 170px;
+  }
+
+  .confidence-rail-scale {
+    font-size: 8.5px;
+  }
 }
 
 .prediction-details-grid .value-card {
@@ -1055,16 +1463,16 @@ body {
   background: rgba(255, 255, 255, 0.07);
 }
 
-.value-ai-row {
-  /* padding insets this row's content 14px from the plain rows above/below
-     it; the matching negative margin cancels that so the percentages all
-     land on the same right edge instead of the AI row's number sitting
-     14px further left than the others. */
+/* Wraps the confidence row AND its caption together so the disclaimer
+   reads as belonging to this number, not to the AI–Market Gap row below
+   it. The negative margin cancels the box's own padding so the percentage
+   above and below still land on the same right edge as the plain rows. */
+.value-ai-box {
   margin: 0 -14px;
   padding: 14px;
-  border: 1px solid rgba(108, 111, 232, 0.22);
+  border: 1px solid rgba(98, 55, 176, 0.22);
   border-radius: 12px;
-  background: rgba(108, 111, 232, 0.07);
+  background: rgba(98, 55, 176, 0.07);
 }
 
 .value-ai-row .value-fighter {
@@ -1073,10 +1481,12 @@ body {
 }
 
 .value-caption {
-  margin-top: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 0.5px solid rgba(98, 55, 176, 0.18);
   font-size: 11px;
   line-height: 1.4;
-  color: rgba(255, 255, 255, 0.34);
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .value-edge-row {
@@ -1142,7 +1552,7 @@ body {
 /* Fight selector — desktop and mobile */
 
 .fight-selector {
-  padding: 18px 40px 0;
+  padding: 16px 40px 0;
 }
 
 .fight-selector-inner {
@@ -1152,10 +1562,10 @@ body {
 .fight-selector label {
   display: block;
   margin-bottom: 8px;
-  color: #a7aaff;
+  color: rgba(255, 255, 255, 0.32);
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -1180,7 +1590,7 @@ body {
   width: 100%;
   min-height: 54px;
   padding: 0 52px 0 16px;
-  border: 1px solid rgba(108, 111, 232, 0.3);
+  border: 1px solid rgba(98, 55, 176, 0.3);
   border-radius: 12px;
   outline: none;
   background: #16161a;
@@ -1193,12 +1603,12 @@ body {
 }
 
 .fight-selector select:hover {
-  border-color: rgba(108, 111, 232, 0.55);
+  border-color: rgba(98, 55, 176, 0.55);
 }
 
 .fight-selector select:focus {
-  border-color: #6c6fe8;
-  box-shadow: 0 0 0 3px rgba(108, 111, 232, 0.1);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(98, 55, 176, 0.1);
 }
 
 @media (max-width: 768px) {
