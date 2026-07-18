@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Bebas_Neue, Titan_One } from "next/font/google";
 import "./globals.css";
+import Footer from "./components/Footer";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -22,23 +23,21 @@ const titanOne = Titan_One({
 export const metadata: Metadata = {
   metadataBase: new URL("https://ufc-fight-predictor-sigma.vercel.app"),
   title: "Pick'em Labs — UFC Fight Analysis",
-  description: "AI-powered UFC fight predictions, live odds, and betting insights powered by Claude, GPT-4, and Gemini.",
+  description:
+    "AI-powered UFC fight predictions, live odds, and betting insights powered by Claude, GPT-4, and Gemini.",
   icons: {
     icon: [
       { url: "/favicon.ico" },
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
     ],
-    apple: [
-      { url: "/apple-touch-icon.png" },
-    ],
-    other: [
-      { rel: "manifest", url: "/site.webmanifest" },
-    ],
+    apple: [{ url: "/apple-touch-icon.png" }],
+    other: [{ rel: "manifest", url: "/site.webmanifest" }],
   },
   openGraph: {
     title: "Pick'em Labs — UFC Fight Analysis",
-    description: "AI-powered UFC fight predictions, live odds, and betting insights.",
+    description:
+      "AI-powered UFC fight predictions, live odds, and betting insights.",
     url: "https://ufc-fight-predictor-sigma.vercel.app",
     siteName: "Pick'em Labs",
     images: [
@@ -54,7 +53,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary",
     title: "Pick'em Labs — UFC Fight Analysis",
-    description: "AI-powered UFC fight predictions, live odds, and betting insights.",
+    description:
+      "AI-powered UFC fight predictions, live odds, and betting insights.",
     images: ["/android-chrome-512x512.png"],
   },
 };
@@ -65,8 +65,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${bebasNeue.variable} ${titanOne.variable}`}>
-      <body>{children}</body>
+    <html
+      lang="en"
+      className={`${inter.variable} ${bebasNeue.variable} ${titanOne.variable}`}
+    >
+      <body className="site-body">
+        <div className="site-content">{children}</div>
+        <Footer />
+      </body>
     </html>
   );
 }

@@ -370,15 +370,32 @@ body {
    on purpose — this is the one moment on the page meant to feel cinematic
    rather than functional. */
 .hero-headline-line {
-  display: block;
+  /* inline-block, not block — actual line breaks are placed explicitly
+     via .hero-break below (different positions on mobile vs desktop),
+     not implied by these being separate block boxes. Still gets its own
+     transform/opacity animation like a block element would. */
+  display: inline-block;
   /* Delay pushed out so the headline starts after the header/event-bar
      shell above it has begun settling, as part of the page's staged
      initial reveal (see .reveal-* below) rather than firing at t=0. */
   animation: heroLineIn 1.05s cubic-bezier(0.16, 1, 0.3, 1) 0.26s both;
 }
 
-.hero-headline-line:nth-child(2) {
+.hero-headline-line-2 {
   animation-delay: 0.48s;
+}
+
+/* Toggled per breakpoint so the same headline text reads as 2 lines on
+   desktop ("Before you place a bet," / "see what the models think.")
+   and 3 tighter lines on mobile ("Before you place" / "a bet, see what"
+   / "the models think.") instead of relying on natural reflow, which
+   wouldn't land on these specific words. */
+.hero-break-mobile { display: none; }
+.hero-break-desktop { }
+
+@media (max-width: 768px) {
+  .hero-break-mobile { display: unset; }
+  .hero-break-desktop { display: none; }
 }
 
 @keyframes heroLineIn {
@@ -443,10 +460,10 @@ body {
 }
 
 .hero-lede {
-  font-size: 14.5px;
-  color: rgba(255, 255, 255, 0.45);
+  font-size: 15.5px;
+  color: rgba(255, 255, 255, 0.62);
   line-height: 1.6;
-  margin-top: 14px;
+  margin-top: 16px;
   max-width: 560px;
 }
 
@@ -454,7 +471,10 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 18px;
+  /* Was 18px, close enough to .hero-lede's own line-height that the two
+     read as one paragraph rather than headline copy + a separate signal
+     strip beneath it. */
+  margin-top: 32px;
 }
 
 .hero-signal-dots {
@@ -1024,22 +1044,26 @@ body {
   }
 
   .hero-headline {
-    /* Sized to read as a true hero headline rather than fit-to-two-lines
-       body copy — wrapping to a 3rd line on narrow phones is expected
-       and fine now, so this isn't constrained against line two's width
-       the way the previous, smaller mobile size was. */
-    font-size: clamp(36px, 12vw, 52px);
+    /* Deliberately broken into exactly 3 lines via .hero-break-mobile
+       (see .hero-headline-line/.hero-break rules above): "Before you
+       place" / "a bet, see what" / "the models think." Sized so each of
+       those segments fits on one line at typical phone widths without
+       *also* wrapping mid-segment — much smaller than the old
+       fits-in-2-lines-or-reflows-to-3 sizing, since a 3-word/4-word
+       segment has far less horizontal room per line than a full
+       half-headline did. */
+    font-size: clamp(28px, 8.5vw, 36px);
     margin-top: 10px;
-    line-height: 1.08;
+    line-height: 1.15;
   }
 
   .hero-lede {
-    font-size: 13.5px;
-    margin-top: 12px;
+    font-size: 14.5px;
+    margin-top: 14px;
   }
 
   .hero-signal {
-    margin-top: 16px;
+    margin-top: 24px;
   }
 
   /* Card tabs */
@@ -1706,4 +1730,383 @@ body {
     min-height: 52px;
     font-size: 14px;
   }
+}
+/* ========================================
+   SITE SHELL — sticky footer layout
+======================================== */
+
+.site-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.site-content {
+  flex: 1;
+}
+
+/* ========================================
+   FOOTER
+======================================== */
+
+.footer {
+  border-top: 0.5px solid rgba(255, 255, 255, 0.07);
+  background: var(--background);
+  margin-top: auto;
+}
+
+.footer-inner {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 28px 40px 18px;
+}
+
+.footer-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+/* Brand / left column */
+
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+}
+
+.footer-brand-name {
+  display: flex;
+  flex-direction: column;
+  /* Deliberately much tighter than .footer-brand's own 8px gap between
+     this block and .footer-desc below it — wordmark + parent-company
+     line need to read as one grouped unit, not three stacked lines of
+     equal weight. */
+  gap: 1px;
+}
+
+.footer-wordmark {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.footer-parent {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.footer-desc {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.footer-copyright {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.28);
+  margin-top: 2px;
+}
+
+/* Link columns / right side */
+
+.footer-links {
+  display: flex;
+  gap: 32px;
+  flex-shrink: 0;
+}
+
+.footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.footer-col-heading {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.28);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.footer-col-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.footer-link {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.footer-link:hover {
+  color: var(--accent-muted);
+}
+
+.footer-link:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Divider + disclaimer */
+
+.footer-divider {
+  margin: 18px 0 14px;
+  border: none;
+  border-top: 0.5px solid rgba(255, 255, 255, 0.07);
+}
+
+.footer-disclaimer {
+  font-size: 10px;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.28);
+  line-height: 1.5;
+}
+
+/* ========================================
+   FOOTER — RESPONSIVE
+======================================== */
+
+@media (max-width: 768px) {
+  .footer-inner {
+    padding: 22px 16px 16px;
+  }
+
+  .footer-main {
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .footer-brand {
+    max-width: 100%;
+  }
+
+  .footer-links {
+    gap: 20px;
+  }
+}
+
+@media (max-width: 430px) {
+  .footer-links {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+/* ========================================
+   METHODOLOGY PAGE
+======================================== */
+
+.meth-page {
+  min-height: 100vh;
+  background: var(--background);
+}
+
+.meth-article {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 64px 40px 96px;
+}
+
+/* Hero */
+
+.meth-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 16px;
+}
+
+.meth-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 20px;
+}
+
+.meth-lead {
+  font-size: 16px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* Divider */
+
+.meth-divider {
+  border: none;
+  border-top: 0.5px solid rgba(255, 255, 255, 0.07);
+  margin: 48px 0;
+}
+
+/* Sections */
+
+.meth-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.meth-heading {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+.meth-body {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.75;
+}
+
+/* Steps */
+
+.meth-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  margin-top: 8px;
+}
+
+.meth-step {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.meth-step-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-muted);
+  letter-spacing: 0.06em;
+  padding-top: 2px;
+  flex-shrink: 0;
+  width: 24px;
+}
+
+.meth-step-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.meth-step-body {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* AI Model cards */
+
+.meth-model-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.meth-model-card {
+  background: var(--surface);
+  border: 0.5px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s ease;
+}
+
+.meth-model-card:hover {
+  border-color: var(--accent-border);
+}
+
+.meth-model-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meth-model-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.meth-model-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.meth-model-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+/* Data sources */
+
+.meth-source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 4px;
+}
+
+.meth-source {
+  border-left: 2px solid var(--accent-border);
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.meth-source-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.meth-source-body {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* Limitations */
+
+.meth-limitations {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 4px;
+}
+
+.meth-limitation {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  padding-left: 18px;
+  border-left: 2px solid rgba(255, 255, 255, 0.08);
+}
+
+.meth-limitation-label {
 }

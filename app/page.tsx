@@ -921,9 +921,14 @@ const statRows = [
         <span className="hero-kicker reveal-hero-kicker">Live Fight Intelligence</span>
 
         <h1 className="hero-headline">
-          <span className="hero-headline-line">Before you place a bet,</span>
-          <span className="hero-headline-line">
-            see what <span className="hero-headline-accent">the models</span> think.
+          <span className="hero-headline-line hero-headline-line-1">Before you place</span>
+          <br className="hero-break hero-break-mobile" />{" "}
+          <span className="hero-headline-line hero-headline-line-1">a bet,</span>
+          <br className="hero-break hero-break-desktop" />{" "}
+          <span className="hero-headline-line hero-headline-line-2">see what</span>
+          <br className="hero-break hero-break-mobile" />{" "}
+          <span className="hero-headline-line hero-headline-line-2">
+            <span className="hero-headline-accent">the models</span> think.
           </span>
         </h1>
 

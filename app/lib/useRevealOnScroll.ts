@@ -37,11 +37,29 @@ export function useRevealOnScroll<T extends HTMLElement>(resetKey: unknown) {
           observer.disconnect();
         }
       },
-      { threshold: 0.2, rootMargin: "0px 0px -10% 0px" }
+      // A fixed pixel rootMargin, not a percentage one — percentage
+      // rootMargin has had inconsistent cross-browser support, and this
+      // only ever needs to fire once per resetKey so being exact isn't
+      // important.
+      { threshold: 0.2, rootMargin: "0px 0px -40px 0px" }
     );
 
     observer.observe(el);
-    return () => observer.disconnect();
+
+    // Safety net only for a genuinely broken/never-firing observer — NOT
+    // a "reveal shortly after load regardless" timer. It has to be long
+    // enough that it basically never wins against a real user actually
+    // scrolling (a short window, like the original 4s, fires before most
+    // people scroll this far down at all, silently defeating the
+    // scroll-trigger for anyone who reads the hero for a few seconds
+    // first) but still recovers eventually if intersection genuinely
+    // never fires.
+    const fallbackTimer = window.setTimeout(() => setVisible(true), 20000);
+
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(fallbackTimer);
+    };
   }, [resetKey]);
 
   return { ref, visible };
