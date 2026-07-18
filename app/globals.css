@@ -1013,20 +1013,13 @@ body {
   }
 
   .hero-headline {
-    /* The base rule's clamp() bottoms out at 27px on narrow phones — too
-       close to body-copy size to read as the page's actual headline.
-       General mobile-hero guidance suggested 38-50px, but measured
-       against the actual, longer of the two lines ("see what the models
-       think.", ~371px unwrapped at 30px font) that overshoots what fits
-       in a 320-430px phone by a wide margin — a first attempt sized only
-       against line one ("Before you place a bet,", shorter) still let
-       line two wrap to 2 rows. This curve is fit to line two specifically
-       (the real binding constraint), landing at the largest size that
-       keeps BOTH lines on one row each down to a 320px phone, with a
-       small safety margin, rather than the originally suggested range. */
-    font-size: clamp(21px, 7vw, 35px);
+    /* Sized to read as a true hero headline rather than fit-to-two-lines
+       body copy — wrapping to a 3rd line on narrow phones is expected
+       and fine now, so this isn't constrained against line two's width
+       the way the previous, smaller mobile size was. */
+    font-size: clamp(36px, 12vw, 52px);
     margin-top: 10px;
-    line-height: 1.05;
+    line-height: 1.08;
   }
 
   .hero-lede {

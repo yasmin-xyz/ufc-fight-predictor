@@ -1279,7 +1279,7 @@ const statRows = [
     );
   })
 ) : (
-  <div className="ai-loading">Odds not available for this matchup</div>
+  <div className="ai-loading">Odds are temporarily unavailable — check back shortly</div>
 )}
               {oddsTimestampLabel && (
                 <div
