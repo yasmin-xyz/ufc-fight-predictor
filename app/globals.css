@@ -683,14 +683,26 @@ body {
 .stat-legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: rgba(255,255,255,0.42); }
 .stat-legend-swatch { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
 .stat-legend-swatch-adv { background: var(--accent-primary); }
-.stat-legend-swatch-dis { background: rgba(98, 55, 176, 0.28); }
+.stat-legend-swatch-dis { background: rgba(101, 95, 223, 0.28); }
 .bar-track { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; display: flex; align-items: center; width: 100%; }
 .bar-left { display: flex; justify-content: flex-end; width: 50%; height: 4px; overflow: hidden; }
 .bar-right { display: flex; justify-content: flex-start; width: 50%; height: 4px; overflow: hidden; }
-.bar-fill-a { height: 4px; border-radius: 2px 0 0 2px; background: var(--accent-primary); flex-shrink: 0; }
-.bar-fill-a.dis { background: rgba(98, 55, 176, 0.35); }
-.bar-fill-b { height: 4px; border-radius: 0 2px 2px 0; background: rgba(98, 55, 176, 0.35); flex-shrink: 0; }
+/* Width starts at 0 (set inline via React, gated on scroll visibility)
+   and transitions out to its real value — growing outward from the
+   center divider, since .bar-left/.bar-right are anchored there. Each
+   row's transitionDelay (also inline) staggers the reveal down the
+   list instead of every bar snapping in at once. */
+.bar-fill-a { height: 4px; border-radius: 2px 0 0 2px; background: var(--accent-primary); flex-shrink: 0; transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+.bar-fill-a.dis { background: rgba(101, 95, 223, 0.35); }
+.bar-fill-b { height: 4px; border-radius: 0 2px 2px 0; background: rgba(101, 95, 223, 0.35); flex-shrink: 0; transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
 .bar-fill-b.adv { background: var(--accent-primary); }
+
+@media (prefers-reduced-motion: reduce) {
+  .bar-fill-a,
+  .bar-fill-b {
+    transition: none;
+  }
+}
 
 /* SKELETON LOADING */
 .skeleton-shimmer {

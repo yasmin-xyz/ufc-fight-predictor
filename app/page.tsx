@@ -5,6 +5,7 @@ import { mergeFightData } from "./lib/mergeFightData";
 import { namesMatchExactly } from "./lib/fighterName";
 import InfoTooltip from "./components/InfoTooltip";
 import ConfidenceMeter from "./components/ConfidenceMeter";
+import { useRevealOnScroll } from "./lib/useRevealOnScroll";
 
 function fightName(fight: any) {
   return `${fight.home_team} vs. ${fight.away_team}`;
@@ -234,6 +235,15 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
   const metricsPollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fighterStatsRequestIdRef = useRef(0);
   const assetReadyIdRef = useRef(0);
+
+  // Scroll-triggered reveal for the Fighter Metrics bars and the
+  // Prediction Summary confidence rail — each plays once its own card
+  // scrolls into view, and replays whenever the selected fight changes
+  // (immediately, if the card is already on screen when that happens).
+  const { ref: statsCardRef, visible: statsBarsVisible } =
+    useRevealOnScroll<HTMLDivElement>(selectedFight?.id ?? null);
+  const { ref: predictionCardRef, visible: confidenceVisible } =
+    useRevealOnScroll<HTMLDivElement>(selectedFight?.id ?? null);
 
   // Called only with data resolved for THIS exact fight, passed explicitly —
   // never reads fighterAStats/fighterBStats/fighterAMetrics/fighterBMetrics
@@ -1049,7 +1059,7 @@ const statRows = [
           </div>
 
           {/* Statistical Edge */}
-          <div className="card">
+          <div className="card" ref={statsCardRef}>
             <div className="card-header">
               <div className="card-title-group">
                 <h2 className="card-label">Fighter Metrics</h2>
@@ -1097,10 +1107,22 @@ const statRows = [
             <div className="stat-name">{stat.name}</div>
             <div className="bar-track">
               <div className="bar-left">
-                <div className={`bar-fill-a ${!stat.aAdv ? "dis" : ""}`} style={{ width: `${stat.aWidth}%` }}></div>
+                <div
+                  className={`bar-fill-a ${!stat.aAdv ? "dis" : ""}`}
+                  style={{
+                    width: statsBarsVisible ? `${stat.aWidth}%` : "0%",
+                    transitionDelay: `${i * 60}ms`,
+                  }}
+                ></div>
               </div>
               <div className="bar-right">
-                <div className={`bar-fill-b ${!stat.aAdv ? "adv" : ""}`} style={{ width: `${stat.bWidth}%` }}></div>
+                <div
+                  className={`bar-fill-b ${!stat.aAdv ? "adv" : ""}`}
+                  style={{
+                    width: statsBarsVisible ? `${stat.bWidth}%` : "0%",
+                    transitionDelay: `${i * 60}ms`,
+                  }}
+                ></div>
               </div>
             </div>
           </div>
@@ -1131,7 +1153,7 @@ const statRows = [
           </div>
 
          {/* AI Fight Breakdown */}
-<div className="card">
+<div className="card" ref={predictionCardRef}>
   <div className="card-header">
     <div className="card-title-group">
       <h2 className="card-label">AI Matchup Breakdown</h2>
@@ -1201,6 +1223,7 @@ const statRows = [
                   <ConfidenceMeter
                     value={prediction.claude.confidence}
                     tierLabel={confidenceTier(prediction.claude.confidence)}
+                    play={confidenceVisible}
                   />
                 </>
               )}

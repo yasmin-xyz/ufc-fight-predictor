@@ -9,9 +9,15 @@ import { useEffect, useState } from "react";
 export default function ConfidenceMeter({
   value,
   tierLabel,
+  play = true,
 }: {
   value: number;
   tierLabel?: string;
+  // When false, the rail holds at 0 instead of filling — used to defer
+  // the animation until the rail has scrolled into view (see
+  // app/lib/useRevealOnScroll.ts). Defaults to true so any other caller
+  // keeps the original fill-immediately behavior.
+  play?: boolean;
 }) {
   const [filledWidth, setFilledWidth] = useState(0);
   const clamped = Math.max(0, Math.min(100, value));
@@ -25,12 +31,14 @@ export default function ConfidenceMeter({
     // the rail stuck at 0% if a fight loads while the tab isn't focused.
     setFilledWidth(0);
 
+    if (!play) return;
+
     const timer = setTimeout(() => {
       setFilledWidth(clamped);
     }, 50);
 
     return () => clearTimeout(timer);
-  }, [clamped]);
+  }, [clamped, play]);
 
   return (
     <div
