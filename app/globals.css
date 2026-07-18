@@ -8,12 +8,16 @@
      lighter, bluer #6C6FE8 the UI drifted toward independently.
      --accent-muted is lightened (not just the raw logo hue) because the
      raw purple only hits ~2.5:1 contrast against --background — nowhere
-     near AA for text. */
+     near AA for text. It was previously #A182D8 (6.1:1) — same hue/
+     saturation as --accent-primary, just much lighter, which read as
+     pastel/lavender rather than a deeper tint of the logo's indigo.
+     #936CDA keeps AA contrast (4.9:1) while sitting closer in richness
+     to the logo. */
   --accent-primary: #6237B0;
   --accent-primary-hover: #7244C4;
   --accent-soft: rgba(98, 55, 176, 0.12);
   --accent-border: rgba(98, 55, 176, 0.35);
-  --accent-muted: #A182D8;
+  --accent-muted: #936CDA;
 
   --accent: var(--accent-primary);
   --text-primary: #E8E8EC;
@@ -53,7 +57,7 @@ body {
 .nav-logo {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 7px;
 }
 
 .nav-logo-img {
@@ -69,7 +73,7 @@ body {
 .nav-logo-text {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 9px;
 }
 
 .nav-logo-letters {
@@ -88,7 +92,10 @@ body {
   letter-spacing: -0.04em;
   -webkit-text-stroke: 1.5px rgba(0,0,0,0.9);
   paint-order: stroke fill;
-  text-shadow: 2px 2px 0px #6C6FE8, 4px 4px 0px #5254c8, 5px 5px 0px #3a3db0;
+  /* Was a 3-layer shadow out to 5px (2/4/5px steps) — dropped the deepest
+     layer and pulled the remaining offsets in for a shallower, less
+     "stickered" extrusion while keeping the same two-tone graffiti look. */
+  text-shadow: 1.5px 1.5px 0px #6C6FE8, 3px 3px 0px #5254c8;
 }
 
 .nav-logo-labs {
@@ -364,11 +371,14 @@ body {
    rather than functional. */
 .hero-headline-line {
   display: block;
-  animation: heroLineIn 1.05s cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* Delay pushed out so the headline starts after the header/event-bar
+     shell above it has begun settling, as part of the page's staged
+     initial reveal (see .reveal-* below) rather than firing at t=0. */
+  animation: heroLineIn 1.05s cubic-bezier(0.16, 1, 0.3, 1) 0.26s both;
 }
 
 .hero-headline-line:nth-child(2) {
-  animation-delay: 0.22s;
+  animation-delay: 0.48s;
 }
 
 @keyframes heroLineIn {
@@ -384,6 +394,46 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .hero-headline-line {
+    animation: none;
+  }
+}
+
+/* INITIAL PAGE REVEAL — a one-time, top-to-bottom cascade on first mount:
+   header shell -> hero -> tabs/selector -> cards. Every rule here is a
+   plain CSS animation on an element that's never unmounted/remounted by
+   later state updates (fight switching, tab changes, data arriving), so
+   it fires exactly once and is fully separate from the fight-switch
+   crossfade on .layout (.layout-transitioning) — that keeps working
+   completely independently, on the same element, once this has finished. */
+@keyframes pageRevealIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal-nav { animation: pageRevealIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0s both; }
+.reveal-event-bar { animation: pageRevealIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.09s both; }
+.reveal-hero-kicker { animation: pageRevealIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both; }
+.reveal-hero-lede { animation: pageRevealIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both; }
+.reveal-hero-signal { animation: pageRevealIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.42s both; }
+.reveal-tabs { animation: pageRevealIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.38s both; }
+.reveal-fight-selector { animation: pageRevealIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.46s both; }
+.reveal-cards { animation: pageRevealIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.56s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-nav,
+  .reveal-event-bar,
+  .reveal-hero-kicker,
+  .reveal-hero-lede,
+  .reveal-hero-signal,
+  .reveal-tabs,
+  .reveal-fight-selector,
+  .reveal-cards {
     animation: none;
   }
 }
@@ -469,7 +519,7 @@ body {
   max-width: 1360px;
   margin: 0 auto;
   opacity: 1;
-  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Dim applied while a newly-selected fight's headshots/Tale-of-the-Tape
@@ -720,7 +770,12 @@ body {
 }
 
 /* AI BREAKDOWN */
-.ai-models-label { font-size: 10px; color: rgba(98, 55, 176, 0.55); }
+/* Full-strength --accent-muted, not a dimmed/translucent version of it —
+   even at 100% opacity this only reaches ~4.6:1 against the card header
+   background, so any further reduction would drop it below AA. It reads
+   as secondary to .card-label through smaller size + regular weight
+   instead of through lower contrast. */
+.ai-models-label { font-size: 10px; font-weight: 400; color: var(--accent-muted); }
 .ai-section { display: flex; flex-direction: column; gap: 10px; }
 .ai-block { background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 14px; transition: border-color 0.2s, background 0.2s; }
 .ai-block:hover { border-color: rgba(98, 55, 176, 0.2); background: rgba(98, 55, 176, 0.03); }
@@ -877,8 +932,17 @@ body {
     flex-shrink: 0;
   }
 
+  .nav-logo-img {
+    height: 22px;
+    width: 22px;
+  }
+
+  .nav-ltr {
+    font-size: 18px;
+  }
+
   .nav-logo-labs {
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .nav-links {
@@ -949,8 +1013,18 @@ body {
   }
 
   .hero-headline {
-    /* Font-size itself is handled by the clamp() in the base rule — this
-       just tightens the space above it for the mobile padding scale. */
+    /* The base rule's clamp() bottoms out at 27px on narrow phones — too
+       close to body-copy size to read as the page's actual headline.
+       General mobile-hero guidance suggested 38-50px, but measured
+       against the actual, longer of the two lines ("see what the models
+       think.", ~371px unwrapped at 30px font) that overshoots what fits
+       in a 320-430px phone by a wide margin — a first attempt sized only
+       against line one ("Before you place a bet,", shorter) still let
+       line two wrap to 2 rows. This curve is fit to line two specifically
+       (the real binding constraint), landing at the largest size that
+       keeps BOTH lines on one row each down to a 320px phone, with a
+       small safety margin, rather than the originally suggested range. */
+    font-size: clamp(21px, 7vw, 35px);
     margin-top: 10px;
     line-height: 1.05;
   }
@@ -1339,7 +1413,10 @@ body {
 .confidence-rail {
   width: 240px;
   max-width: 100%;
-  margin-top: 8px;
+  /* +12px over the previous 8px — gives "Moderate confidence" room to
+     breathe as its own line before the rail, rather than the two
+     crowding together. */
+  margin-top: 20px;
   margin-left: auto;
 }
 
@@ -1379,9 +1456,9 @@ body {
   display: flex;
   justify-content: space-between;
   margin-top: 7px;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.38);
+  color: rgba(255, 255, 255, 0.32);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -1399,7 +1476,8 @@ body {
   }
 
   .confidence-rail-scale {
-    font-size: 8.5px;
+    font-size: 7.5px;
+    color: rgba(255, 255, 255, 0.3);
   }
 }
 

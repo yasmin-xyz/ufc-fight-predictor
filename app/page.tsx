@@ -355,6 +355,16 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
     loadPredictionData(fight);
   }
 
+  // The browser restores the previous scroll position on reload by
+  // default, which made the page look like it never loaded at the top.
+  // Force it to always start at the top instead.
+  useEffect(() => {
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+    window.scrollTo(0, 0);
+  }, []);
+
   useEffect(() => {
     async function fetchOdds() {
       try {
@@ -448,9 +458,19 @@ selectFight(defaultFight);
 
     const images = headshotUrls.map((src) => {
       const img = new Image();
-      img.onload = markLoaded;
-      img.onerror = markLoaded; // a broken headshot shouldn't block the reveal
       img.src = src;
+
+      // decode() resolves only once the image is fully decoded and ready
+      // to paint — onload alone can fire before decoding finishes on
+      // larger images, which is what let a headshot still visibly "pop
+      // in" a moment after the fade had already revealed the card.
+      if (typeof img.decode === "function") {
+        img.decode().then(markLoaded, markLoaded);
+      } else {
+        img.onload = markLoaded;
+        img.onerror = markLoaded; // a broken headshot shouldn't block the reveal
+      }
+
       return img;
     });
 
@@ -766,7 +786,7 @@ const statRows = [
 ];
   return (
     <main>
-     <nav className="nav">
+     <nav className="nav reveal-nav">
   <div className="nav-logo">
     <img
       src="/android-chrome-192x192.png"
@@ -830,7 +850,7 @@ const statRows = [
   </div>
 </nav>
 
-<div className="event-bar">
+<div className="event-bar reveal-event-bar">
   <div className="event-dot"></div>
   <span className="event-eyebrow">Next Event</span>
   {ufcEvent ? (
@@ -863,7 +883,7 @@ const statRows = [
 </div>
 
       <div className="hero">
-        <span className="hero-kicker">Live Fight Intelligence</span>
+        <span className="hero-kicker reveal-hero-kicker">Live Fight Intelligence</span>
 
         <h1 className="hero-headline">
           <span className="hero-headline-line">Before you place a bet,</span>
@@ -872,11 +892,11 @@ const statRows = [
           </span>
         </h1>
 
-        <p className="hero-lede">
+        <p className="hero-lede reveal-hero-lede">
           Compare live sportsbook odds, official UFC fighter metrics, fighter history, and three independent AI model perspectives for every matchup.
         </p>
 
-        <div className="hero-signal">
+        <div className="hero-signal reveal-hero-signal">
           <span className="hero-signal-dots" aria-hidden="true">
             <span className="hero-signal-dot" style={{ background: "#CF9B60", animationDelay: "0s" }} />
             <span className="hero-signal-dot" style={{ background: "#5DC98A", animationDelay: "0.35s" }} />
@@ -889,7 +909,7 @@ const statRows = [
         </div>
       </div>
 
-      <div className="tabs">
+      <div className="tabs reveal-tabs">
   <button
     type="button"
     className={`tab ${activeTab === "main" ? "active" : ""}`}
@@ -914,7 +934,7 @@ const statRows = [
     EARLY PRELIMS
   </button>
 </div>
-<div className="fight-selector">
+<div className="fight-selector reveal-fight-selector">
   <div className="fight-selector-inner">
     <label htmlFor="fight-select">Select a matchup to analyze</label>
 
@@ -942,6 +962,7 @@ const statRows = [
   </div>
 </div>
 
+      <div className="reveal-cards">
       <div className={`layout ${contentDim ? "layout-transitioning" : ""}`}>
 
         
@@ -1224,7 +1245,7 @@ const statRows = [
               <div className="card-title-group">
                 <h2 className="card-label">Betting Market</h2>
                 <InfoTooltip label="Betting Market">
-                  Live odds from major sportsbooks. Implied probabilities are calculated from the latest available betting lines.
+                  Live odds from major sportsbooks. Implied probabilities are calculated from the latest available betting lines. Some preliminary bouts may not yet have posted lines.
                 </InfoTooltip>
               </div>
             </div>
@@ -1271,6 +1292,91 @@ const statRows = [
               )}
             </div>
           </div>
+
+          {/* Multi-Model Consensus */}
+<div className="card">
+  <div className="card-header">
+    <div className="card-title-group">
+      <h2 className="card-label">Model Consensus</h2>
+      <InfoTooltip label="Model Consensus">
+        Claude, GPT-4, and Gemini analyze the matchup independently. Their predictions are combined to show the overall consensus and level of agreement.
+      </InfoTooltip>
+    </div>
+  </div>
+
+  <div className="card-body">
+    {(() => {
+      const models = [
+        { key: "claude", model: "Claude", color: "#CF9B60", prediction: prediction?.claude },
+        { key: "gpt", model: "GPT-4", color: "#5DC98A", prediction: prediction?.gpt },
+        { key: "gemini", model: "Gemini", color: "#5B9EE8", prediction: prediction?.gemini },
+      ];
+
+      const consensusWinner = prediction?.consensus?.winner;
+      // Server-computed — reflects the corrected aggregation (ties/failed
+      // models handled there), so the UI never re-derives this differently.
+      const agreeingModelKeys: string[] = prediction?.consensus?.agreeingModels || [];
+      const totalSuccessfulModels: number =
+        prediction?.consensus?.totalSuccessfulModels ?? models.filter((m) => m.prediction).length;
+      const modelAgreementLabel: string = prediction?.consensus?.modelAgreement || "";
+
+      return (
+        <>
+          <div className="consensus-result">
+            <div>
+              <div className="cons-eyebrow">Consensus pick</div>
+              <div className="cons-pick">{consensusWinner || "Pending AI"}</div>
+            </div>
+
+            <div className="cons-pct-wrap">
+              <div className="cons-pct">
+                {prediction?.consensus?.confidence
+                  ? `${prediction.consensus.confidence}%`
+                  : "—"}
+              </div>
+              <div className="cons-pct-label">avg. confidence</div>
+            </div>
+          </div>
+
+          <div
+            className={`model-agreement ${
+              modelAgreementLabel === "Unanimous" ? "model-agreement-full" : ""
+            }`}
+          >
+            <span className="model-agreement-label">Model Agreement</span>
+            <span className="model-agreement-val">
+              {totalSuccessfulModels ? `${agreeingModelKeys.length} / ${totalSuccessfulModels}` : "Pending"}
+            </span>
+          </div>
+
+          {models.map((m, i) => {
+            const pick = m.prediction?.predictedWinner || "Pending";
+            const agrees = agreeingModelKeys.includes(m.key);
+
+            return (
+              <div key={i} className="model-row">
+                <div className="model-name">
+                  <div className="model-dot" style={{ background: m.color }}></div>
+                  {m.model}
+                </div>
+
+                <div className="model-right">
+                  <div className="model-pick">
+                    {m.prediction ? (agrees ? "✓ " : "✕ ") : ""}
+                    {pick}
+                  </div>
+                  <div className="model-conf">
+                    {m.prediction ? `${m.prediction.confidence}% confidence` : "— confidence"}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </>
+      );
+    })()}
+  </div>
+</div>
 
           {/* Value Analysis */}
           <div className="card">
@@ -1361,91 +1467,6 @@ const statRows = [
 </div>
             </div>
           </div>
-
-          {/* Multi-Model Consensus */}
-<div className="card">
-  <div className="card-header">
-    <div className="card-title-group">
-      <h2 className="card-label">Model Consensus</h2>
-      <InfoTooltip label="Model Consensus">
-        Claude, GPT-4, and Gemini analyze the matchup independently. Their predictions are combined to show the overall consensus and level of agreement.
-      </InfoTooltip>
-    </div>
-  </div>
-
-  <div className="card-body">
-    {(() => {
-      const models = [
-        { key: "claude", model: "Claude", color: "#CF9B60", prediction: prediction?.claude },
-        { key: "gpt", model: "GPT-4", color: "#5DC98A", prediction: prediction?.gpt },
-        { key: "gemini", model: "Gemini", color: "#5B9EE8", prediction: prediction?.gemini },
-      ];
-
-      const consensusWinner = prediction?.consensus?.winner;
-      // Server-computed — reflects the corrected aggregation (ties/failed
-      // models handled there), so the UI never re-derives this differently.
-      const agreeingModelKeys: string[] = prediction?.consensus?.agreeingModels || [];
-      const totalSuccessfulModels: number =
-        prediction?.consensus?.totalSuccessfulModels ?? models.filter((m) => m.prediction).length;
-      const modelAgreementLabel: string = prediction?.consensus?.modelAgreement || "";
-
-      return (
-        <>
-          <div className="consensus-result">
-            <div>
-              <div className="cons-eyebrow">Consensus pick</div>
-              <div className="cons-pick">{consensusWinner || "Pending AI"}</div>
-            </div>
-
-            <div className="cons-pct-wrap">
-              <div className="cons-pct">
-                {prediction?.consensus?.confidence
-                  ? `${prediction.consensus.confidence}%`
-                  : "—"}
-              </div>
-              <div className="cons-pct-label">avg. confidence</div>
-            </div>
-          </div>
-
-          <div
-            className={`model-agreement ${
-              modelAgreementLabel === "Unanimous" ? "model-agreement-full" : ""
-            }`}
-          >
-            <span className="model-agreement-label">Model Agreement</span>
-            <span className="model-agreement-val">
-              {totalSuccessfulModels ? `${agreeingModelKeys.length} / ${totalSuccessfulModels}` : "Pending"}
-            </span>
-          </div>
-
-          {models.map((m, i) => {
-            const pick = m.prediction?.predictedWinner || "Pending";
-            const agrees = agreeingModelKeys.includes(m.key);
-
-            return (
-              <div key={i} className="model-row">
-                <div className="model-name">
-                  <div className="model-dot" style={{ background: m.color }}></div>
-                  {m.model}
-                </div>
-
-                <div className="model-right">
-                  <div className="model-pick">
-                    {m.prediction ? (agrees ? "✓ " : "✕ ") : ""}
-                    {pick}
-                  </div>
-                  <div className="model-conf">
-                    {m.prediction ? `${m.prediction.confidence}% confidence` : "— confidence"}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </>
-      );
-    })()}
-  </div>
-</div>
 
           {/* Fight History */}
           <div className="card">
@@ -1550,6 +1571,7 @@ const statRows = [
 
         </div>
 
+      </div>
       </div>
     </main>
   );
