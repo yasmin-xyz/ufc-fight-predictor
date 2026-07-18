@@ -378,11 +378,11 @@ body {
   /* Delay pushed out so the headline starts after the header/event-bar
      shell above it has begun settling, as part of the page's staged
      initial reveal (see .reveal-* below) rather than firing at t=0. */
-  animation: heroLineIn 1.05s cubic-bezier(0.16, 1, 0.3, 1) 0.26s both;
+  animation: heroLineIn 1.4s cubic-bezier(0.16, 1, 0.3, 1) 0.26s both;
 }
 
 .hero-headline-line-2 {
-  animation-delay: 0.48s;
+  animation-delay: 0.6s;
 }
 
 /* Toggled per breakpoint so the same headline text reads as 2 lines on
@@ -433,14 +433,14 @@ body {
   }
 }
 
-.reveal-nav { animation: pageRevealIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0s both; }
-.reveal-event-bar { animation: pageRevealIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.09s both; }
-.reveal-hero-kicker { animation: pageRevealIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both; }
-.reveal-hero-lede { animation: pageRevealIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both; }
-.reveal-hero-signal { animation: pageRevealIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.42s both; }
-.reveal-tabs { animation: pageRevealIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.38s both; }
-.reveal-fight-selector { animation: pageRevealIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.46s both; }
-.reveal-cards { animation: pageRevealIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.56s both; }
+.reveal-nav { animation: pageRevealIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0s both; }
+.reveal-event-bar { animation: pageRevealIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.13s both; }
+.reveal-hero-kicker { animation: pageRevealIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.28s both; }
+.reveal-hero-lede { animation: pageRevealIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.48s both; }
+.reveal-hero-signal { animation: pageRevealIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.59s both; }
+.reveal-tabs { animation: pageRevealIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.53s both; }
+.reveal-fight-selector { animation: pageRevealIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.64s both; }
+.reveal-cards { animation: pageRevealIn 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.78s both; }
 
 @media (prefers-reduced-motion: reduce) {
   .reveal-nav,
@@ -712,9 +712,9 @@ body {
    center divider, since .bar-left/.bar-right are anchored there. Each
    row's transitionDelay (also inline) staggers the reveal down the
    list instead of every bar snapping in at once. */
-.bar-fill-a { height: 4px; border-radius: 2px 0 0 2px; background: var(--accent-primary); flex-shrink: 0; transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+.bar-fill-a { height: 4px; border-radius: 2px 0 0 2px; background: var(--accent-primary); flex-shrink: 0; transition: width 1.1s cubic-bezier(0.16, 1, 0.3, 1); }
 .bar-fill-a.dis { background: rgba(101, 95, 223, 0.35); }
-.bar-fill-b { height: 4px; border-radius: 0 2px 2px 0; background: rgba(101, 95, 223, 0.35); flex-shrink: 0; transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+.bar-fill-b { height: 4px; border-radius: 0 2px 2px 0; background: rgba(101, 95, 223, 0.35); flex-shrink: 0; transition: width 1.1s cubic-bezier(0.16, 1, 0.3, 1); }
 .bar-fill-b.adv { background: var(--accent-primary); }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1460,7 +1460,7 @@ body {
   border-radius: 3px;
   background: var(--accent-primary);
   width: 0%;
-  transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: width 1.1s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Pinned exactly at the confidence percentage — the fill alone only
@@ -1477,7 +1477,7 @@ body {
   background: var(--accent-primary);
   border: 2px solid #0F0F11;
   transform: translate(-50%, -50%);
-  transition: left 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: left 1.1s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .confidence-rail-scale {

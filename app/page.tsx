@@ -1116,7 +1116,7 @@ const statRows = [
                   className={`bar-fill-a ${!stat.aAdv ? "dis" : ""}`}
                   style={{
                     width: statsBarsVisible ? `${stat.aWidth}%` : "0%",
-                    transitionDelay: `${i * 60}ms`,
+                    transitionDelay: `${i * 80}ms`,
                   }}
                 ></div>
               </div>
@@ -1125,7 +1125,7 @@ const statRows = [
                   className={`bar-fill-b ${!stat.aAdv ? "adv" : ""}`}
                   style={{
                     width: statsBarsVisible ? `${stat.bWidth}%` : "0%",
-                    transitionDelay: `${i * 60}ms`,
+                    transitionDelay: `${i * 80}ms`,
                   }}
                 ></div>
               </div>
