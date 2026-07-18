@@ -147,29 +147,52 @@ function shortEventDate(dateStr: string | undefined | null) {
 // display string only changes when the caller's ticking clock advances,
 // not on every unrelated render — the underlying `fetchedAtIso` is the
 // actual source of truth and never resets on its own.
-function formatOddsTimestamp(fetchedAtIso: string | null, nowMs: number): string | null {
+function formatOddsTimestamp(
+  fetchedAtIso: string | null,
+  nowMs: number,
+  stale: boolean
+): string | null {
   if (!fetchedAtIso) return null;
   const fetchedMs = new Date(fetchedAtIso).getTime();
   if (isNaN(fetchedMs)) return null;
 
   const diffMinutes = Math.floor((nowMs - fetchedMs) / 60000);
-
-  if (diffMinutes < 1) return "Last updated just now";
-  if (diffMinutes < 60) return `Last updated ${diffMinutes} minute${diffMinutes === 1 ? "" : "s"} ago`;
-
   const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `Last updated ${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
 
-  const date = new Date(fetchedMs);
-  const dateStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const timeStr = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-  return `Odds updated ${dateStr} at ${timeStr}`;
+  let relative: string;
+  if (diffMinutes < 1) {
+    relative = "just now";
+  } else if (diffMinutes < 60) {
+    relative = `${diffMinutes} minute${diffMinutes === 1 ? "" : "s"} ago`;
+  } else if (diffHours < 24) {
+    relative = `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+  } else {
+    const date = new Date(fetchedMs);
+    const dateStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const timeStr = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    relative = `on ${dateStr} at ${timeStr}`;
+  }
+
+  // When serving a last-known-good fallback (the live provider request
+  // failed), say so explicitly rather than letting a normal-looking
+  // "Last updated" caption imply everything is current.
+  if (stale) {
+    return `Odds last updated ${relative} • Live updates temporarily unavailable`;
+  }
+
+  return diffHours < 24 ? `Last updated ${relative}` : `Odds updated ${relative}`;
 }
 
 export default function Home() {
   const [odds, setOdds] = useState<any[]>([]);
   const [loadingOdds, setLoadingOdds] = useState(true);
   const [oddsFetchedAt, setOddsFetchedAt] = useState<string | null>(null);
+  // true once we've gotten a response confirming the odds provider is
+  // reachable at all this session — starts true (assume best) so we
+  // don't flash a "provider unavailable" message before the first
+  // request has even resolved.
+  const [oddsProviderAvailable, setOddsProviderAvailable] = useState(true);
+  const [oddsStale, setOddsStale] = useState(false);
   // Ticks once a minute purely so the "Last updated X ago" copy stays
   // accurate over a long-lived page session — never triggers a re-fetch.
   const [now, setNow] = useState(() => Date.now());
@@ -379,6 +402,8 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
 
         setOdds(oddsData);
         setOddsFetchedAt(oddsPayload?.fetchedAt || null);
+        setOddsStale(!!oddsPayload?.stale);
+        setOddsProviderAvailable(oddsPayload?.providerAvailable !== false);
         setUfcEvent(eventData);
         setMergedFights(merged);
 
@@ -710,7 +735,7 @@ selectFight(defaultFight);
   const isContrarianPick =
     marketGapLabel === "Contrarian pick" || marketGapLabel === "High-risk contrarian pick";
 
-  const oddsTimestampLabel = formatOddsTimestamp(oddsFetchedAt, now);
+  const oddsTimestampLabel = formatOddsTimestamp(oddsFetchedAt, now, oddsStale);
 
   const hasMetrics =
   metricsStatus === "ready" &&
@@ -1278,6 +1303,10 @@ const statRows = [
       </div>
     );
   })
+) : !oddsProviderAvailable && odds.length === 0 ? (
+  <div className="ai-loading ai-loading-error">
+    Live sportsbook odds are temporarily unavailable. Fighter metrics and AI predictions are unaffected.
+  </div>
 ) : (
   <div className="ai-loading">Odds are temporarily unavailable — check back shortly</div>
 )}

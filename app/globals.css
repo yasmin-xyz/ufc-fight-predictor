@@ -3,21 +3,19 @@
   --background: #0F0F11;
   --surface: #16161A;
 
-  /* Unified indigo/purple palette, rooted in the logo's dominant color
-     (#6237B0, sampled directly from the app icon PNG) instead of the
-     lighter, bluer #6C6FE8 the UI drifted toward independently.
-     --accent-muted is lightened (not just the raw logo hue) because the
-     raw purple only hits ~2.5:1 contrast against --background — nowhere
-     near AA for text. It was previously #A182D8 (6.1:1) — same hue/
-     saturation as --accent-primary, just much lighter, which read as
-     pastel/lavender rather than a deeper tint of the logo's indigo.
-     #936CDA keeps AA contrast (4.9:1) while sitting closer in richness
-     to the logo. */
-  --accent-primary: #6237B0;
-  --accent-primary-hover: #7244C4;
-  --accent-soft: rgba(98, 55, 176, 0.12);
-  --accent-border: rgba(98, 55, 176, 0.35);
-  --accent-muted: #936CDA;
+  /* Unified indigo palette — matches the new logo assets exactly
+     (#655FDF primary, #5651BA deep accent, #6159D0 hover/active), a
+     richer true indigo rather than the previous purple (#6237B0/
+     #A182D8). --accent-muted is a lightened tint of the same 243° hue
+     (not a different color) because the raw primary only hits ~3.9:1
+     contrast against --background — short of AA (4.5:1) for text;
+     #7B76E5 clears that at 5.1:1. */
+  --accent-primary: #655FDF;
+  --accent-primary-hover: #6159D0;
+  --accent-soft: rgba(101, 95, 223, 0.12);
+  --accent-border: rgba(101, 95, 223, 0.35);
+  --accent-muted: #7B76E5;
+  --accent-deep: #5651BA;
 
   --accent: var(--accent-primary);
   --text-primary: #E8E8EC;
@@ -94,8 +92,10 @@ body {
   paint-order: stroke fill;
   /* Was a 3-layer shadow out to 5px (2/4/5px steps) — dropped the deepest
      layer and pulled the remaining offsets in for a shallower, less
-     "stickered" extrusion while keeping the same two-tone graffiti look. */
-  text-shadow: 1.5px 1.5px 0px #6C6FE8, 3px 3px 0px #5254c8;
+     "stickered" extrusion while keeping the same two-tone graffiti look.
+     Now uses the new indigo palette directly — primary for the near
+     layer, deep accent for the far one — matching the logo assets. */
+  text-shadow: 1.5px 1.5px 0px var(--accent-primary), 3px 3px 0px var(--accent-deep);
 }
 
 .nav-logo-labs {
@@ -625,16 +625,14 @@ body {
 
 .odds-footer {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   margin-top: 12px;
   padding-top: 10px;
   border-top: 0.5px solid rgba(255, 255, 255, 0.06);
   font-size: 10.5px;
   color: rgba(255, 255, 255, 0.32);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.5;
 }
 
 /* Minimal clock face built from borders/pseudo-elements — no icon
@@ -643,6 +641,7 @@ body {
   position: relative;
   width: 9px;
   height: 9px;
+  margin-top: 3px;
   border: 1px solid rgba(255, 255, 255, 0.32);
   border-radius: 50%;
   flex-shrink: 0;
@@ -789,7 +788,7 @@ body {
 .pred-name { font-size: 17px; font-weight: 600; color: #E8E8EC; letter-spacing: -0.01em; }
 .pred-conf { font-size: 13px; color: var(--accent-muted); }
 .conf-track { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; margin-top: 11px; overflow: hidden; }
-.conf-fill { height: 3px; border-radius: 2px; background: linear-gradient(90deg, var(--accent-primary), #9B8FFF); }
+.conf-fill { height: 3px; border-radius: 2px; background: linear-gradient(90deg, var(--accent-primary), var(--accent-muted)); }
 .wrong-list { display: flex; flex-direction: column; gap: 7px; }
 .wrong-item { font-size: 12px; color: rgba(255,255,255,0.42); display: flex; gap: 9px; line-height: 1.55; }
 .wrong-dot { color: rgba(220,80,80,0.5); flex-shrink: 0; }
