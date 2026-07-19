@@ -36,7 +36,7 @@ export default function MethodologyPage() {
 
         {/* Section 1 */}
         <section className="meth-section">
-          <h2 className="meth-heading">How Pick&apos;em Labs works</h2>
+          <h2 className="meth-heading">The analysis process</h2>
           <p className="meth-body">
             For every fight on an upcoming card, Pick&apos;em Labs pulls three
             independent inputs and combines them into a single analysis view.
