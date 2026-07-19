@@ -396,6 +396,17 @@ body {
   animation: heroLineIn 1.4s cubic-bezier(0.16, 1, 0.3, 1) 0.26s both;
 }
 
+/* Slower on mobile — the same duration read as noticeably quicker on a
+   phone (smaller viewport, closer viewing distance, no other on-screen
+   context to spend time settling into), so it needs more time here to
+   land with the same deliberate, cinematic feel it has on desktop. */
+@media (max-width: 768px) {
+  .hero-headline-line {
+    animation-duration: 1.9s;
+    animation-delay: 0.35s;
+  }
+}
+
 /* Previously delayed relative to .hero-headline-line-1 for a two-stage
    reveal — now shares the same animation-delay (set on the shared
    .hero-headline-line rule above) so the whole headline fades in as one
@@ -478,6 +489,21 @@ body {
    don't have the home page's staged multi-section cascade — just a nav
    step then a single content step. */
 .reveal-meth-article { animation: pageRevealIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; }
+
+/* Same reasoning as .hero-headline-line's mobile override above — this
+   whole cascade read as too quick on a phone, so both each step's own
+   duration and the stagger between steps are stretched out (~1.45x). */
+@media (max-width: 768px) {
+  .reveal-nav { animation-duration: 0.95s; }
+  .reveal-event-bar { animation-duration: 0.95s; animation-delay: 0.19s; }
+  .reveal-hero-kicker { animation-duration: 0.95s; animation-delay: 0.4s; }
+  .reveal-hero-lede { animation-duration: 0.95s; animation-delay: 0.7s; }
+  .reveal-hero-signal { animation-duration: 0.95s; animation-delay: 0.85s; }
+  .reveal-tabs { animation-duration: 0.95s; animation-delay: 0.77s; }
+  .reveal-fight-selector { animation-duration: 0.95s; animation-delay: 0.93s; }
+  .reveal-cards { animation-duration: 1.25s; animation-delay: 1.13s; }
+  .reveal-meth-article { animation-duration: 1s; animation-delay: 0.22s; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .reveal-nav,
@@ -1703,15 +1729,21 @@ body {
   text-transform: uppercase;
 }
 
-.fight-select-wrap {
+/* Generic custom dropdown (Dropdown.tsx) — standing in for a native
+   <select> so the open/close transition is a small, deliberate fade
+   instead of, e.g., iOS Safari's own picker-opening animation, which
+   can't be restyled or disabled via CSS. Used by both the home page's
+   fight selector (FightSelect.tsx, a thin wrapper) and the feedback
+   form's category field. */
+.dropdown-wrap {
   position: relative;
   /* iOS Safari can flash its default tap-highlight on this wrapper
-     rather than (or in addition to) the <select> itself, depending on
+     rather than (or in addition to) the trigger itself, depending on
      stacking — cover both. */
   -webkit-tap-highlight-color: transparent;
 }
 
-.fight-select-wrap::after {
+.dropdown-wrap::after {
   content: "";
   position: absolute;
   right: 18px;
@@ -1725,14 +1757,11 @@ body {
   transition: transform 0.16s ease;
 }
 
-.fight-select-wrap:has(.fight-select-panel-open)::after {
+.dropdown-wrap:has(.dropdown-panel-open)::after {
   transform: translateY(-30%) rotate(225deg);
 }
 
-/* Custom trigger button standing in for a native <select> — see
-   FightSelect.tsx for why: iOS Safari's own picker-opening animation
-   for native selects can't be restyled or disabled via CSS. */
-.fight-select-trigger {
+.dropdown-trigger {
   width: 100%;
   min-height: 54px;
   padding: 0 52px 0 16px;
@@ -1748,20 +1777,20 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-.fight-select-trigger:hover {
+.dropdown-trigger:hover {
   border-color: rgba(98, 55, 176, 0.55);
 }
 
-.fight-select-trigger:focus-visible {
+.dropdown-trigger:focus-visible {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(98, 55, 176, 0.1);
 }
 
-/* Positioned via inline top/left/width (computed in FightSelect.tsx from
+/* Positioned via inline top/left/width (computed in Dropdown.tsx from
    the trigger's getBoundingClientRect(), same technique as
    InfoTooltip.tsx) — portaled to document.body, so position here is
-   relative to the document, not .fight-select-wrap. */
-.fight-select-panel {
+   relative to the document, not .dropdown-wrap. */
+.dropdown-panel {
   position: absolute;
   max-height: 320px;
   overflow-y: auto;
@@ -1780,20 +1809,20 @@ body {
   transition: opacity 0.16s ease, transform 0.16s ease;
 }
 
-.fight-select-panel-open {
+.dropdown-panel-open {
   opacity: 1;
   transform: translateY(0) scale(1);
   pointer-events: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fight-select-panel {
+  .dropdown-panel {
     transform: none;
     transition: opacity 0.12s ease;
   }
 }
 
-.fight-select-option {
+.dropdown-option {
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 14px;
@@ -1802,12 +1831,12 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-.fight-select-option-active {
+.dropdown-option-active {
   background: rgba(98, 55, 176, 0.16);
   color: #fff;
 }
 
-.fight-select-option-selected {
+.dropdown-option-selected {
   color: var(--accent-muted);
   font-weight: 600;
 }
@@ -1821,7 +1850,7 @@ body {
     width: 100%;
   }
 
-  .fight-select-trigger {
+  .dropdown-trigger {
     min-height: 52px;
     font-size: 14px;
   }
@@ -2325,49 +2354,6 @@ body {
   resize: vertical;
   min-height: 140px;
   line-height: 1.6;
-}
-
-.form-select-wrap {
-  position: relative;
-}
-
-.form-select-wrap::after {
-  content: "";
-  position: absolute;
-  right: 18px;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  border-right: 2px solid rgba(255, 255, 255, 0.5);
-  border-bottom: 2px solid rgba(255, 255, 255, 0.5);
-  transform: translateY(-70%) rotate(45deg);
-  pointer-events: none;
-}
-
-.form-select {
-  width: 100%;
-  padding: 13px 44px 13px 16px;
-  background: var(--surface);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 14px;
-  outline: none;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  -webkit-tap-highlight-color: transparent;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.form-select:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-.form-select:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .form-error {

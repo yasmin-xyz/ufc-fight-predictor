@@ -1,10 +1,12 @@
 // app/feedback/page.tsx
 "use client";
 
-import type { Metadata } from "next";
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import HomeLogoLink from "../components/HomeLogoLink";
+import Dropdown from "../components/Dropdown";
+
+const CATEGORIES = ["Bug report", "Feature request", "General feedback"];
 
 export default function FeedbackPage() {
   const [name, setName] = useState("");
@@ -27,31 +29,11 @@ export default function FeedbackPage() {
 
   return (
     <main className="meth-page">
-      <nav className="nav">
-        <Link href="/" className="nav-logo" style={{ textDecoration: "none" }}>
-          <Image
-            src="/android-chrome-192x192.png"
-            alt="Pick'em Labs"
-            width={30}
-            height={30}
-            className="nav-logo-img"
-          />
-          <div className="nav-logo-text">
-            <div className="nav-logo-letters">
-              <span className="nav-ltr" style={{ transform: "rotate(-2deg) translateY(1px)" }}>P</span>
-              <span className="nav-ltr" style={{ transform: "rotate(1.5deg) translateY(-1px)" }}>I</span>
-              <span className="nav-ltr" style={{ transform: "rotate(-1deg) translateY(1px)" }}>C</span>
-              <span className="nav-ltr" style={{ transform: "rotate(2deg) translateY(-1px)" }}>K</span>
-              <span className="nav-ltr" style={{ transform: "rotate(-1.5deg) translateY(0px)", margin: "0 1px" }}>&apos;</span>
-              <span className="nav-ltr" style={{ transform: "rotate(1deg) translateY(1px)" }}>E</span>
-              <span className="nav-ltr" style={{ transform: "rotate(-2deg) translateY(-1px)" }}>M</span>
-            </div>
-            <span className="nav-logo-labs">LABS</span>
-          </div>
-        </Link>
+      <nav className="nav reveal-nav">
+        <HomeLogoLink />
       </nav>
 
-      <article className="meth-article">
+      <article className="meth-article reveal-meth-article">
         <header className="meth-hero">
           <div className="meth-eyebrow">Feedback</div>
           <h1 className="meth-title">Help us improve Pick&apos;em Labs</h1>
@@ -107,18 +89,13 @@ export default function FeedbackPage() {
               <label className="form-label" htmlFor="category">
                 Category
               </label>
-              <div className="form-select-wrap">
-                <select
-                  id="category"
-                  className="form-select"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                >
-                  <option>Bug report</option>
-                  <option>Feature request</option>
-                  <option>General feedback</option>
-                </select>
-              </div>
+              <Dropdown
+                id="category"
+                ariaLabel="Feedback category"
+                options={CATEGORIES.map((cat) => ({ key: cat, label: cat, value: cat }))}
+                selectedKey={category}
+                onSelect={(option) => setCategory(option.value)}
+              />
             </div>
 
             <div className="form-group">
