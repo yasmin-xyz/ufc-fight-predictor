@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import Image from "next/image";
+import HomeLogoLink from "../components/HomeLogoLink";
 
 export const metadata: Metadata = {
   title: "Methodology — Pick'em Labs",
@@ -13,32 +12,12 @@ export default function MethodologyPage() {
     <main className="meth-page">
 
       {/* Nav */}
-      <nav className="nav">
-        <Link href="/" className="nav-logo" style={{ textDecoration: "none" }}>
-          <Image
-            src="/android-chrome-192x192.png"
-            alt="Pick'em Labs"
-            width={30}
-            height={30}
-            className="nav-logo-img"
-          />
-          <div className="nav-logo-text">
-            <div className="nav-logo-letters">
-              <span className="nav-ltr" style={{ transform: "rotate(-2deg) translateY(1px)" }}>P</span>
-              <span className="nav-ltr" style={{ transform: "rotate(1.5deg) translateY(-1px)" }}>I</span>
-              <span className="nav-ltr" style={{ transform: "rotate(-1deg) translateY(1px)" }}>C</span>
-              <span className="nav-ltr" style={{ transform: "rotate(2deg) translateY(-1px)" }}>K</span>
-              <span className="nav-ltr" style={{ transform: "rotate(-1.5deg) translateY(0px)", margin: "0 1px" }}>&apos;</span>
-              <span className="nav-ltr" style={{ transform: "rotate(1deg) translateY(1px)" }}>E</span>
-              <span className="nav-ltr" style={{ transform: "rotate(-2deg) translateY(-1px)" }}>M</span>
-            </div>
-            <span className="nav-logo-labs">LABS</span>
-          </div>
-        </Link>
+      <nav className="nav reveal-nav">
+        <HomeLogoLink />
       </nav>
 
       {/* Article */}
-      <article className="meth-article">
+      <article className="meth-article reveal-meth-article">
 
         {/* Hero */}
         <header className="meth-hero">

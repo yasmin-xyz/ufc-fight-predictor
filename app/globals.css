@@ -443,6 +443,11 @@ body {
 .reveal-fight-selector { animation: pageRevealIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.64s both; }
 .reveal-cards { animation: pageRevealIn 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.78s both; }
 
+/* Same reveal system, reused on static pages (methodology, etc.) that
+   don't have the home page's staged multi-section cascade — just a nav
+   step then a single content step. */
+.reveal-meth-article { animation: pageRevealIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; }
+
 @media (prefers-reduced-motion: reduce) {
   .reveal-nav,
   .reveal-event-bar,
@@ -451,7 +456,8 @@ body {
   .reveal-hero-signal,
   .reveal-tabs,
   .reveal-fight-selector,
-  .reveal-cards {
+  .reveal-cards,
+  .reveal-meth-article {
     animation: none;
   }
 }
@@ -1660,10 +1666,12 @@ body {
 
 .fight-selector {
   padding: 16px 40px 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .fight-selector-inner {
   width: min(440px, 100%);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .fight-selector label {
@@ -1678,6 +1686,10 @@ body {
 
 .fight-select-wrap {
   position: relative;
+  /* iOS Safari can flash its default tap-highlight on this wrapper
+     rather than (or in addition to) the <select> itself, depending on
+     stacking — cover both. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 .fight-select-wrap::after {
