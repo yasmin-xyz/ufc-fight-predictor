@@ -2029,7 +2029,7 @@ body {
   color: var(--text-primary);
   letter-spacing: -0.03em;
   line-height: 1.15;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 
 .meth-lead {
@@ -2060,6 +2060,14 @@ body {
   color: var(--text-primary);
   letter-spacing: -0.02em;
   line-height: 1.3;
+}
+
+/* .meth-section's flex `gap` is a uniform 20px between every child, which
+   left the heading feeling as detached from its own body copy as that
+   body copy was from the *next* section's elements. Pull just this one
+   gap in without touching the section's overall rhythm. */
+.meth-heading + * {
+  margin-top: -10px;
 }
 
 .meth-body {
