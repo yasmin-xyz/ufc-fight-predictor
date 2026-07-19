@@ -13,13 +13,41 @@ export type UfcEventFight = {
   fighterBFlag: string | undefined;
 };
 
+export type UfcEventNext = {
+  name: string;
+  date: string;
+};
+
 export type UfcEvent = {
   eventName: string;
   shortName: string;
   date: string;
   venue: string;
   fights: UfcEventFight[];
+  completed: boolean;
+  // The next scheduled event after this one, per ESPN's own forward
+  // calendar — never hardcoded, since the schedule shifts. null if this
+  // event isn't completed, or if it couldn't be found in the calendar
+  // (e.g. it's the last one ESPN currently lists).
+  nextEvent: UfcEventNext | null;
 };
+
+// ESPN's scoreboard "events[0]" keeps returning the just-concluded event
+// for a while after it ends (status.type.completed flips true, but it
+// doesn't roll over to the next event immediately) — this looks up the
+// following entry in the league's own forward calendar, keyed by name,
+// rather than guessing or hardcoding a date.
+function findNextEvent(calendar: any[] | undefined, currentEventName: string): UfcEventNext | null {
+  if (!Array.isArray(calendar)) return null;
+
+  const idx = calendar.findIndex((entry) => entry?.label === currentEventName);
+  if (idx === -1) return null;
+
+  const next = calendar[idx + 1];
+  if (!next?.label || !next?.startDate) return null;
+
+  return { name: next.label, date: next.startDate };
+}
 
 // Shared by the public /api/ufc-event route and the admin fighter-sync
 // endpoint, so both read the exact same ESPN parsing logic.
@@ -57,11 +85,18 @@ export async function fetchCurrentUfcEvent(): Promise<UfcEvent | null> {
     };
   });
 
+  const completed = event.status?.type?.completed === true;
+  const nextEvent = completed
+    ? findNextEvent(data.leagues?.[0]?.calendar, event.name)
+    : null;
+
   return {
     eventName: event.name,
     shortName: event.shortName,
     date: event.date,
     venue: event.competitions?.[0]?.venue?.fullName || "Venue TBD",
     fights,
+    completed,
+    nextEvent,
   };
 }

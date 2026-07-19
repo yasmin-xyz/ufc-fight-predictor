@@ -314,6 +314,24 @@ body {
 .event-name { font-size: 13px; font-weight: 500; color: #E8E8EC; }
 .event-date { font-size: 12px; color: rgba(255,255,255,0.4); margin-left: auto; }
 
+/* A concluded event isn't "live" — still the dot, drop the pulse, and
+   mute the name slightly so the bar reads as settled/past rather than
+   competing with the forward-looking "check back" message. */
+.event-bar-concluded .event-dot {
+  animation: none;
+  background: rgba(255, 255, 255, 0.25);
+}
+.event-bar-concluded .event-eyebrow {
+  color: var(--accent-muted);
+  font-weight: 700;
+}
+.event-bar-concluded .event-name {
+  color: rgba(255, 255, 255, 0.55);
+}
+.event-bar-concluded .event-date {
+  color: var(--accent-muted);
+}
+
 /* Reserve the same footprint as the real text so there's no layout shift
    once it loads, without ever showing literal "Loading..." copy. */
 .event-skeleton-name { display: inline-block; height: 13px; width: 220px; border-radius: 4px; }
@@ -1704,9 +1722,17 @@ body {
   border-bottom: 2px solid rgba(255, 255, 255, 0.62);
   transform: translateY(-70%) rotate(45deg);
   pointer-events: none;
+  transition: transform 0.16s ease;
 }
 
-.fight-selector select {
+.fight-select-wrap:has(.fight-select-panel-open)::after {
+  transform: translateY(-30%) rotate(225deg);
+}
+
+/* Custom trigger button standing in for a native <select> — see
+   FightSelect.tsx for why: iOS Safari's own picker-opening animation
+   for native selects can't be restyled or disabled via CSS. */
+.fight-select-trigger {
   width: 100%;
   min-height: 54px;
   padding: 0 52px 0 16px;
@@ -1717,22 +1743,73 @@ body {
   color: rgba(255, 255, 255, 0.92);
   font: inherit;
   font-size: 14px;
+  text-align: left;
   cursor: pointer;
-  /* Not a custom animation — iOS Safari's own default tap-highlight
-     flashes/ripples over native form controls on tap unless this is
-     explicitly disabled. */
   -webkit-tap-highlight-color: transparent;
-  appearance: none;
-  -webkit-appearance: none;
 }
 
-.fight-selector select:hover {
+.fight-select-trigger:hover {
   border-color: rgba(98, 55, 176, 0.55);
 }
 
-.fight-selector select:focus {
+.fight-select-trigger:focus-visible {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(98, 55, 176, 0.1);
+}
+
+/* Positioned via inline top/left/width (computed in FightSelect.tsx from
+   the trigger's getBoundingClientRect(), same technique as
+   InfoTooltip.tsx) — portaled to document.body, so position here is
+   relative to the document, not .fight-select-wrap. */
+.fight-select-panel {
+  position: absolute;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: #16161a;
+  border: 1px solid rgba(98, 55, 176, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  z-index: 300;
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+  transform-origin: top center;
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.fight-select-panel-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fight-select-panel {
+    transform: none;
+    transition: opacity 0.12s ease;
+  }
+}
+
+.fight-select-option {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fight-select-option-active {
+  background: rgba(98, 55, 176, 0.16);
+  color: #fff;
+}
+
+.fight-select-option-selected {
+  color: var(--accent-muted);
+  font-weight: 600;
 }
 
 @media (max-width: 768px) {
@@ -1744,7 +1821,7 @@ body {
     width: 100%;
   }
 
-  .fight-selector select {
+  .fight-select-trigger {
     min-height: 52px;
     font-size: 14px;
   }

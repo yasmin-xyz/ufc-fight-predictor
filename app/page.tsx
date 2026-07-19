@@ -5,6 +5,7 @@ import { mergeFightData } from "./lib/mergeFightData";
 import { namesMatchExactly } from "./lib/fighterName";
 import InfoTooltip from "./components/InfoTooltip";
 import ConfidenceMeter from "./components/ConfidenceMeter";
+import FightSelect from "./components/FightSelect";
 import { useRevealOnScroll } from "./lib/useRevealOnScroll";
 
 function fightName(fight: any) {
@@ -879,34 +880,53 @@ const statRows = [
     </InfoTooltip>
     {ufcEvent && (
       <span className="nav-badge" id="event-badge">
-        {shortEventDate(selectedFight?.date) || shortEventDate(ufcEvent?.date) || "Upcoming"}
+        {ufcEvent.completed
+          ? ufcEvent.nextEvent
+            ? `Next event: ${shortEventDate(ufcEvent.nextEvent.date)}`
+            : "Upcoming"
+          : shortEventDate(selectedFight?.date) || shortEventDate(ufcEvent?.date) || "Upcoming"}
       </span>
     )}
   </div>
 </nav>
 
-<div className="event-bar reveal-event-bar">
+<div className={`event-bar reveal-event-bar ${ufcEvent?.completed ? "event-bar-concluded" : ""}`}>
   <div className="event-dot"></div>
-  <span className="event-eyebrow">Next Event</span>
+  <span className="event-eyebrow">{ufcEvent?.completed ? "Event Concluded" : "Next Event"}</span>
   {ufcEvent ? (
     <>
       <span className="event-name event-fade-in">{ufcEvent.eventName}</span>
       <span className="event-date event-fade-in">
-        {selectedFight?.date
-          ? new Date(selectedFight.date).toLocaleDateString("en-US", {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })
-          : ufcEvent.date
-          ? new Date(ufcEvent.date).toLocaleDateString("en-US", {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })
-          : ""}
-        {eventVenue && ` · ${eventVenue}`}
-        {eventLocation && ` · ${eventLocation}`}
+        {ufcEvent.completed ? (
+          ufcEvent.nextEvent ? (
+            <>
+              Check back closer to {new Date(ufcEvent.nextEvent.date).toLocaleDateString("en-US", {
+                month: "long",
+                day: "numeric",
+              })}{" "}for {ufcEvent.nextEvent.name}
+            </>
+          ) : (
+            "Check back soon for the next event"
+          )
+        ) : (
+          <>
+            {selectedFight?.date
+              ? new Date(selectedFight.date).toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : ufcEvent.date
+              ? new Date(ufcEvent.date).toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : ""}
+            {eventVenue && ` · ${eventVenue}`}
+            {eventLocation && ` · ${eventLocation}`}
+          </>
+        )}
       </span>
     </>
   ) : (
@@ -978,27 +998,11 @@ const statRows = [
   <div className="fight-selector-inner">
     <label htmlFor="fight-select">Select a matchup to analyze</label>
 
-    <div className="fight-select-wrap">
-      <select
-        id="fight-select"
-        value={selectedFight?.id ? String(selectedFight.id) : ""}
-        onChange={(event) => {
-          const nextFight = visibleFights.find(
-            (fight) => String(fight.id) === event.target.value
-          );
-
-          if (!nextFight) return;
-
-          selectFight(nextFight);
-        }}
-      >
-        {visibleFights.map((fight) => (
-          <option key={fight.id} value={String(fight.id)}>
-            {fight.fighterA} vs. {fight.fighterB}
-          </option>
-        ))}
-      </select>
-    </div>
+    <FightSelect
+      fights={visibleFights}
+      selectedId={selectedFight?.id}
+      onSelect={selectFight}
+    />
   </div>
 </div>
 
