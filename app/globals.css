@@ -328,11 +328,8 @@ body {
   to { opacity: 1; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .event-fade-in {
-    animation: none;
-  }
-}
+/* No prefers-reduced-motion override here — this is already a pure
+   opacity fade with no movement, so there's nothing to soften. */
 
 /* HERO */
 .hero { padding: 26px 40px 4px; }
@@ -410,9 +407,19 @@ body {
   }
 }
 
+/* Pure-opacity fallback for the same animation — no translateY, so
+   nothing moves across the screen. Reduced-motion preferences are meant
+   to suppress that kind of movement, not fades entirely; swapping just
+   animation-name here keeps every element's own duration/delay from the
+   rule above intact. */
+@keyframes heroLineInReduced {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-headline-line {
-    animation: none;
+    animation-name: heroLineInReduced;
   }
 }
 
@@ -432,6 +439,12 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Opacity-only fallback, same reasoning as heroLineInReduced above. */
+@keyframes pageRevealInReduced {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .reveal-nav { animation: pageRevealIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0s both; }
@@ -458,7 +471,7 @@ body {
   .reveal-fight-selector,
   .reveal-cards,
   .reveal-meth-article {
-    animation: none;
+    animation-name: pageRevealInReduced;
   }
 }
 
@@ -559,12 +572,8 @@ body {
   transition: opacity 0.26s ease-out;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .layout,
-  .layout-transitioning {
-    transition: none;
-  }
-}
+/* No prefers-reduced-motion override — a plain opacity dim/fade on fight
+   switch, no movement, so left as-is. */
 
 /* CARD */
 .card { background: #16161A; border: 0.5px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; transition: border-color 0.25s ease, box-shadow 0.25s ease; }
@@ -724,12 +733,8 @@ body {
 .bar-fill-b { height: 4px; border-radius: 0 2px 2px 0; background: rgba(101, 95, 223, 0.35); flex-shrink: 0; transition: width 1.1s cubic-bezier(0.16, 1, 0.3, 1); }
 .bar-fill-b.adv { background: var(--accent-primary); }
 
-@media (prefers-reduced-motion: reduce) {
-  .bar-fill-a,
-  .bar-fill-b {
-    transition: none;
-  }
-}
+/* No prefers-reduced-motion override — a width fill, no translate/scale,
+   so left enabled (see useRevealOnScroll.ts for the same reasoning). */
 
 /* SKELETON LOADING */
 .skeleton-shimmer {
@@ -1498,12 +1503,8 @@ body {
   letter-spacing: 0.03em;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .confidence-rail-fill,
-  .confidence-rail-marker {
-    transition: none;
-  }
-}
+/* No prefers-reduced-motion override — width/left fills, no
+   translate/scale, so left enabled (see useRevealOnScroll.ts). */
 
 @media (max-width: 768px) {
   .confidence-rail {

@@ -14,13 +14,12 @@ export function useRevealOnScroll<T extends HTMLElement>(resetKey: unknown) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const prefersReducedMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-
-    if (prefersReducedMotion || typeof IntersectionObserver === "undefined") {
-      // Skip the scroll-gated reveal entirely rather than delaying content
-      // behind a motion preference the user has explicitly opted out of.
+    // Deliberately NOT gated on prefers-reduced-motion — the bars/rail
+    // fill via a plain width/left transition with no translate, scale,
+    // or parallax, which isn't the kind of motion that preference is
+    // meant to suppress, and users who keep it on generally still expect
+    // to see restrained fades/fills like this one.
+    if (typeof IntersectionObserver === "undefined") {
       setVisible(true);
       return;
     }
