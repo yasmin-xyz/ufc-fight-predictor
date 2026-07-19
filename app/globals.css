@@ -1998,10 +1998,16 @@ body {
   font-size: 11px;
   font-weight: 700;
   color: var(--accent-muted);
-  letter-spacing: 0.06em;
-  padding-top: 2px;
+  letter-spacing: 0.02em;
   flex-shrink: 0;
-  width: 24px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  border: 0.5px solid var(--accent-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .meth-step-title {
@@ -2039,6 +2045,7 @@ body {
 
 .meth-model-card:hover {
   border-color: var(--accent-border);
+  box-shadow: 0 0 24px rgba(98, 55, 176, 0.08), 0 4px 24px rgba(0,0,0,0.3);
 }
 
 .meth-model-header {
@@ -2076,11 +2083,19 @@ body {
 }
 
 .meth-source {
+  background: var(--surface);
+  border: 0.5px solid rgba(255, 255, 255, 0.07);
   border-left: 2px solid var(--accent-border);
-  padding-left: 18px;
+  border-radius: 10px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.meth-source:hover {
+  box-shadow: 0 0 24px rgba(98, 55, 176, 0.08), 0 4px 24px rgba(0,0,0,0.3);
 }
 
 .meth-source-label {
@@ -2109,9 +2124,39 @@ body {
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.7;
-  padding-left: 18px;
-  border-left: 2px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface);
+  border: 0.5px solid rgba(255, 255, 255, 0.07);
+  border-left: 2px solid rgba(232, 184, 75, 0.35);
+  border-radius: 10px;
+  padding: 16px 18px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.meth-limitation:hover {
+  border-color: rgba(232, 184, 75, 0.4);
+  box-shadow: 0 0 24px rgba(232, 184, 75, 0.06), 0 4px 24px rgba(0,0,0,0.3);
 }
 
 .meth-limitation-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #E8B84B;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+@media (max-width: 768px) {
+  .meth-article {
+    padding: 48px 20px 72px;
+  }
+
+  .meth-title {
+    font-size: 28px;
+  }
+
+  .meth-model-grid {
+    grid-template-columns: 1fr;
+  }
 }
