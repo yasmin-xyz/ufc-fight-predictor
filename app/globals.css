@@ -381,9 +381,10 @@ body {
   animation: heroLineIn 1.4s cubic-bezier(0.16, 1, 0.3, 1) 0.26s both;
 }
 
-.hero-headline-line-2 {
-  animation-delay: 0.6s;
-}
+/* Previously delayed relative to .hero-headline-line-1 for a two-stage
+   reveal — now shares the same animation-delay (set on the shared
+   .hero-headline-line rule above) so the whole headline fades in as one
+   piece rather than in visible chunks. */
 
 /* Toggled per breakpoint so the same headline text reads as 2 lines on
    desktop ("Before you place a bet," / "see what the models think.")
@@ -1704,6 +1705,10 @@ body {
   font: inherit;
   font-size: 14px;
   cursor: pointer;
+  /* Not a custom animation — iOS Safari's own default tap-highlight
+     flashes/ripples over native form controls on tap unless this is
+     explicitly disabled. */
+  -webkit-tap-highlight-color: transparent;
   appearance: none;
   -webkit-appearance: none;
 }
