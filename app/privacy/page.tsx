@@ -21,8 +21,7 @@ export default function PrivacyPage() {
           <div className="meth-eyebrow">Legal</div>
           <h1 className="meth-title">Privacy Policy</h1>
           <p className="meth-lead">
-            We think privacy policies should be easy to read. This page explains what information Pick&apos;em Labs collects, why we collect
-            it, and how it&apos;s used—in plain English.
+            We value your privacy. This page explains what we collect, why we collect it, and how we use it.
           </p>
         </header>
 
@@ -39,8 +38,8 @@ export default function PrivacyPage() {
           <p className="meth-body">
             If you choose to use our {" "}
             <Link href="/feedback" className="meth-inline-link">
-              feedback form
-            </Link>{" "}, we collect whatever
+              feedback form,
+            </Link>{" "} we collect whatever
             information you decide to submit. Name and email are optional, and
             the message field is the only required field.
           </p>
