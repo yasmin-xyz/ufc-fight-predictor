@@ -3,12 +3,12 @@ import Link from "next/link";
 const PRODUCT_LINKS = [
   { label: "Methodology", href: "/methodology" },
   { label: "Feedback", href: "/feedback" },
+  { label: "Responsible Gambling", href: "/responsible-gambling" },
 ];
 
 const LEGAL_LINKS = [
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms of Service", href: "/terms" },
-  { label: "Responsible Gambling", href: "/responsible-gambling" },
 ];
 
 export default function Footer() {
