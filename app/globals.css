@@ -2418,3 +2418,19 @@ body {
 .meth-back-link:hover {
   color: var(--text-primary);
 }
+
+/* ========================================
+   INLINE LINKS WITHIN ARTICLE BODY TEXT
+======================================== */
+
+.meth-inline-link {
+  color: var(--accent-muted);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-border);
+  text-underline-offset: 2px;
+  transition: color 0.15s ease;
+}
+
+.meth-inline-link:hover {
+  color: var(--text-primary);
+}
