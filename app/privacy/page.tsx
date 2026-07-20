@@ -25,10 +25,6 @@ export default function PrivacyPage() {
             explains what information Pick&apos;em Labs collects, why we collect
             it, and how it&apos;s used—without unnecessary legal jargon.
           </p>
-          <p className="meth-body">
-            Pick&apos;em Labs is operated by PickMeLabs, a sole proprietorship
-            based in Ontario, Canada.
-          </p>
         </header>
 
         <div className="meth-divider" />
