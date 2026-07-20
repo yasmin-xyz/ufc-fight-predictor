@@ -145,6 +145,20 @@ function shortEventDate(dateStr: string | undefined | null) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+// Cito's `result` field isn't limited to "win"/"loss" — draws and no
+// contests are real MMA outcomes, not just missing data. Treating
+// anything non-"win" as a loss (the previous logic) silently mislabels
+// them.
+function historyResultBadge(result: string | null | undefined): { label: string; className: string } {
+  const normalized = (result || "").trim().toLowerCase();
+  if (normalized === "win") return { label: "W", className: "result-w" };
+  if (normalized === "draw") return { label: "D", className: "result-d" };
+  if (normalized === "nc" || normalized === "no contest" || normalized === "no-contest") {
+    return { label: "NC", className: "result-nc" };
+  }
+  return { label: "L", className: "result-l" };
+}
+
 // `nowMs` is passed in (rather than read via Date.now() inline) so the
 // display string only changes when the caller's ticking clock advances,
 // not on every unrelated render — the underlying `fetchedAtIso` is the
@@ -1603,12 +1617,14 @@ const statRows = [
                   );
                 }
 
-                return activeHistory.map((fight: any, i: number) => (
+                return activeHistory.map((fight: any, i: number) => {
+                  const badge = historyResultBadge(fight.result);
+                  return (
                   <div key={i} className="history-fight">
                     <div className="history-header">
                       <span className="history-opponent">{fight.opponent || "Unknown opponent"}</span>
-                      <span className={`history-result ${fight.result === "win" ? "result-w" : "result-l"}`}>
-                        {fight.result === "win" ? "W" : "L"}
+                      <span className={`history-result ${badge.className}`}>
+                        {badge.label}
                       </span>
                     </div>
                     <div className="history-meta">
@@ -1621,7 +1637,8 @@ const statRows = [
                       {fight.time ? ` · ${fight.time}` : ""}
                     </div>
                   </div>
-                ));
+                  );
+                });
               })()}
 
               <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.22)", textAlign: "center", marginTop: "12px" }}>

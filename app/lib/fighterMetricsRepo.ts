@@ -72,6 +72,55 @@ export type FighterHistoryRow = {
   updated_at: string;
 };
 
+// Cito's history feed occasionally contains two source records for the
+// exact same real-world fight, differing in event-name completeness,
+// event-date precision (off by a day, or — observed in production — off
+// by a full year), and even method formatting (e.g. "U-DEC" vs.
+// "Decision - Unanimous" for the same fight) enough that
+// dedupeHistoryRows' exact-match key below doesn't catch them, so both
+// get stored as separate rows. Round + finish time are the one pair of
+// fields both duplicate variants agree on in every case seen so far —
+// method is left out of the key because its formatting isn't consistent
+// between duplicates, and opponent + round + time landing on the exact
+// same second is not something two genuinely different fights against
+// the same opponent would coincidentally share. Applied on read rather
+// than fixed up in the DB so it needs no migration and stays correct
+// even if a future sync reintroduces the same kind of near-duplicate.
+function dedupeRedundantFights<T extends FighterHistoryRow>(rows: T[]): T[] {
+  const byFight = new Map<string, T>();
+
+  for (const row of rows) {
+    const key = `${row.opponent_slug}|${row.round}|${row.fight_time}`;
+    const existing = byFight.get(key);
+
+    if (!existing) {
+      byFight.set(key, row);
+      continue;
+    }
+
+    // Prefer whichever row has the more specific event name (e.g. "UFC
+    // 313: Pereira vs. Ankalaev" over a bare "UFC 313"); if those are
+    // about equally descriptive, keep the earlier date.
+    const existingLen = existing.event_name?.length ?? 0;
+    const rowLen = row.event_name?.length ?? 0;
+
+    if (rowLen > existingLen) {
+      byFight.set(key, row);
+    } else if (
+      rowLen === existingLen &&
+      row.event_date &&
+      existing.event_date &&
+      row.event_date < existing.event_date
+    ) {
+      byFight.set(key, row);
+    }
+  }
+
+  return [...byFight.values()].sort((a, b) =>
+    (b.event_date || "").localeCompare(a.event_date || "")
+  );
+}
+
 export async function getCachedHistory(fighterSlug: string) {
   const { data, error } = await supabaseAdmin
     .from("fighter_history")
@@ -84,7 +133,7 @@ export async function getCachedHistory(fighterSlug: string) {
     return null;
   }
 
-  return data as (FighterHistoryRow & { id: number; updated_at: string })[];
+  return dedupeRedundantFights(data as (FighterHistoryRow & { id: number; updated_at: string })[]);
 }
 
 // Postgres' ON CONFLICT DO UPDATE cannot touch the same conflict target
