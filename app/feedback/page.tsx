@@ -51,9 +51,6 @@ export default function FeedbackPage() {
             <p className="feedback-success-body">
               We&apos;ve received your message and will take a look.
             </p>
-            <Link href="/" className="meth-back-link">
-              ← Back to home
-            </Link>
           </div>
         ) : (
           <form className="feedback-form" onSubmit={handleSubmit}>
@@ -119,6 +116,12 @@ export default function FeedbackPage() {
             </button>
           </form>
         )}
+
+        <div className="meth-divider" />
+
+        <Link href="/" className="meth-back-link">
+          ← Back to home
+        </Link>
       </article>
     </main>
   );

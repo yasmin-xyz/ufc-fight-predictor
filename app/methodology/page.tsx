@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import HomeLogoLink from "../components/HomeLogoLink";
 
 export const metadata: Metadata = {
@@ -260,6 +261,12 @@ export default function MethodologyPage() {
             </li>
           </ul>
         </section>
+
+        <div className="meth-divider" />
+
+        <Link href="/" className="meth-back-link">
+          ← Back to home
+        </Link>
       </article>
     </main>
   );
