@@ -139,9 +139,13 @@ function validatePredictBody(raw: unknown) {
 
 
 // Bumped whenever the prompt, consensus logic, or data-flow changes in a way
-// that makes previously-cached rows unreliable. v5 specifically invalidates
-// everything cached under the stale-closure metrics bug (see conversation).
-const PREDICTION_VERSION = "v5-data-integrity";
+// that makes previously-cached rows unreliable. v5 invalidated everything
+// cached under the stale-closure metrics bug. v6 invalidates predictions
+// generated with oddsA/oddsB silently falling back to 0/0 — any fight whose
+// odds only matched by surname (given names differ between ESPN and the
+// odds API, e.g. "Steve"/"Stephen") had its per-fighter price lookup fail
+// before mergeFightData.ts started resolving the outcome name explicitly.
+const PREDICTION_VERSION = "v6-outcome-name-fix";
 
 function createFightKey(fighterA: string, fighterB: string) {
   const matchup = [fighterA, fighterB].sort().join(" vs ");

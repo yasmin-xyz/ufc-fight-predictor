@@ -647,6 +647,19 @@ body {
 .fighter-b { text-align: right; }
 .fighter-name { font-size: 20px; font-weight: 700; color: #E8E8EC; letter-spacing: -0.025em; }
 .fighter-record { font-size: 12px; color: rgba(255,255,255,0.3); margin-top: 5px; }
+.fighter-debut-note {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-muted);
+  background: rgba(98, 55, 176, 0.12);
+  border: 0.5px solid rgba(98, 55, 176, 0.3);
+  border-radius: 20px;
+  padding: 3px 9px;
+  margin-top: 7px;
+}
 .vs-col { display: flex; flex-direction: column; align-items: center; padding-top: 8px; }
 .vs-text { font-size: 11px; color: rgba(255,255,255,0.18); text-transform: uppercase; letter-spacing: 0.12em; }
 .weight-pill { font-size: 10px; color: var(--accent-muted); background: rgba(98, 55, 176, 0.1); border: 0.5px solid rgba(98, 55, 176, 0.2); padding: 4px 11px; border-radius: 20px; white-space: nowrap; }
@@ -657,6 +670,7 @@ body {
 .tot-compare { display: flex; flex-direction: column; gap: 10px; margin: var(--space-5) auto 0; padding-top: var(--space-4); border-top: 0.5px solid rgba(255,255,255,0.06); max-width: 480px; }
 .tot-compare-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
 .tot-compare-val { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.75); font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
+.tot-compare-val-unknown { font-style: italic; font-weight: 400; color: rgba(255,255,255,0.35); }
 .tot-compare-row .tot-compare-val:first-child { text-align: left; }
 .tot-compare-row .tot-compare-val:last-child { text-align: right; }
 .tot-compare-label { font-size: 10px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.08em; text-align: center; min-width: 62px; }
@@ -753,10 +767,14 @@ body {
 
 /* STATS */
 .stat-grid { display: flex; flex-direction: column; gap: 18px; }
-.stat-row { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 12px; }
-.stat-val { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Wide enough for "Unknown" (the longest value this column ever holds) to
+   sit with real breathing room, not just the shortest real values like
+   "61%" — a fixed width here keeps every row's bar-track aligned. */
+.stat-row { display: grid; grid-template-columns: 58px 1fr 58px; align-items: center; gap: 12px; }
+.stat-val { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .stat-val-a { color: var(--accent-muted); text-align: left; }
 .stat-val-b { color: rgba(255,255,255,0.38); text-align: right; }
+.stat-val-unknown { font-size: 11px; font-style: italic; font-weight: 400; color: rgba(255,255,255,0.35); }
 .stat-center { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .stat-name { font-size: 11px; color: rgba(255,255,255,0.42); text-align: center; }
 .stat-legend { display: flex; align-items: center; gap: var(--space-4); }
@@ -970,6 +988,18 @@ body {
 
 .fighter-headshot-b {
   margin-left: auto;
+}
+
+.fighter-headshot-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.fighter-headshot-placeholder svg {
+  width: 55%;
+  height: 55%;
 }/* ========================================
    RESPONSIVE — TABLET
 ======================================== */
@@ -1236,12 +1266,16 @@ body {
   /* Statistical Edge */
 
   .stat-row {
-    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    grid-template-columns: 52px minmax(0, 1fr) 52px;
     gap: 8px;
   }
 
   .stat-val {
     font-size: 13px;
+  }
+
+  .stat-val-unknown {
+    font-size: 10px;
   }
 
   .stat-name {
@@ -1314,11 +1348,15 @@ body {
   }
 
   .stat-row {
-    grid-template-columns: 38px minmax(0, 1fr) 38px;
+    grid-template-columns: 46px minmax(0, 1fr) 46px;
   }
 
   .stat-val {
     font-size: 12px;
+  }
+
+  .stat-val-unknown {
+    font-size: 9.5px;
   }
 
   .consensus-result {

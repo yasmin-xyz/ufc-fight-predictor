@@ -25,6 +25,7 @@ export type FighterMetricsRow = {
   source_updated_at: string | null;
   last_synced_at: string | null;
   updated_at: string;
+  octagon_debut?: string | null;
 };
 
 export async function getCachedMetrics(normalizedName: string) {

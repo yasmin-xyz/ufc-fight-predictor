@@ -5,6 +5,7 @@ import {
   fetchCitoFighterFights,
   type CitoFighterStats,
 } from "./citoProvider";
+import { searchSherdogFighter, fetchSherdogFightHistory } from "./sherdogProvider";
 import {
   getCachedMetrics,
   upsertMetrics,
@@ -14,6 +15,14 @@ import {
   type FighterMetricsRow,
   type FighterHistoryRow,
 } from "./fighterMetricsRepo";
+
+function slugifyOpponentName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-");
+}
 
 export type MappedMetrics = {
   slpm: string | null;
@@ -76,6 +85,7 @@ export type MetricsPeekResult = {
   status: "cached" | "missing" | "known_unavailable";
   needsRefresh: boolean;
   metrics: MappedMetrics | null;
+  octagonDebut: string | null;
 };
 
 // Supabase-only read, no Cito calls. Used by the read-first fighter-metrics
@@ -85,7 +95,7 @@ export async function peekFighterMetrics(fighterName: string): Promise<MetricsPe
   const cached = await getCachedMetrics(normalizedName);
 
   if (!cached) {
-    return { normalizedName, providerSlug: null, status: "missing", needsRefresh: true, metrics: null };
+    return { normalizedName, providerSlug: null, status: "missing", needsRefresh: true, metrics: null, octagonDebut: null };
   }
 
   if (cached.source === "cito-not-found") {
@@ -95,6 +105,7 @@ export async function peekFighterMetrics(fighterName: string): Promise<MetricsPe
       status: "known_unavailable",
       needsRefresh: !isFresh(cached.last_synced_at),
       metrics: null,
+      octagonDebut: null,
     };
   }
 
@@ -104,6 +115,7 @@ export async function peekFighterMetrics(fighterName: string): Promise<MetricsPe
     status: "cached",
     needsRefresh: !isFresh(cached.last_synced_at),
     metrics: rowToMapped(cached),
+    octagonDebut: cached.octagon_debut ?? null,
   };
 }
 
@@ -144,6 +156,7 @@ export type MetricsSyncResult = {
   cacheStatus: MetricsCacheStatus;
   providerSlug: string | null;
   metrics: MappedMetrics | null;
+  octagonDebut: string | null;
 };
 
 export async function syncFighterMetrics(fighterName: string): Promise<MetricsSyncResult> {
@@ -157,6 +170,7 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
       cacheStatus: "hit",
       providerSlug: cached.provider_slug,
       metrics: rowToMapped(cached),
+      octagonDebut: cached.octagon_debut ?? null,
     };
   }
 
@@ -175,6 +189,7 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
         cacheStatus: "stale_fallback",
         providerSlug: cached.provider_slug,
         metrics: rowToMapped(cached),
+        octagonDebut: cached.octagon_debut ?? null,
       };
     }
 
@@ -211,7 +226,7 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
       }
     }
 
-    return { normalizedName, cacheStatus: "unavailable", providerSlug: null, metrics: null };
+    return { normalizedName, cacheStatus: "unavailable", providerSlug: null, metrics: null, octagonDebut: null };
   }
 
   const fighter = searchResult.fighter;
@@ -225,10 +240,17 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
         cacheStatus: "stale_fallback",
         providerSlug: cached.provider_slug,
         metrics: rowToMapped(cached),
+        octagonDebut: cached.octagon_debut ?? null,
       };
     }
 
-    return { normalizedName, cacheStatus: "unavailable", providerSlug: fighter.slug, metrics: null };
+    return {
+      normalizedName,
+      cacheStatus: "unavailable",
+      providerSlug: fighter.slug,
+      metrics: null,
+      octagonDebut: fighter.octagonDebut,
+    };
   }
 
   const mapped = mapCitoStats(fighter.stats);
@@ -259,6 +281,7 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
     source_updated_at: fighter.stats.lastSyncedAt,
     last_synced_at: now,
     updated_at: now,
+    octagon_debut: fighter.octagonDebut,
   };
 
   const saved = await upsertMetrics(row);
@@ -266,7 +289,13 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
     console.error(`[fighterSync] Supabase save failure (metrics): "${fighterName}"`);
   }
 
-  return { normalizedName, cacheStatus: "miss_refreshed", providerSlug: fighter.slug, metrics: mapped };
+  return {
+    normalizedName,
+    cacheStatus: "miss_refreshed",
+    providerSlug: fighter.slug,
+    metrics: mapped,
+    octagonDebut: fighter.octagonDebut,
+  };
 }
 
 export type HistoryEntry = {
@@ -308,6 +337,54 @@ function rowToHistoryEntry(row: FighterHistoryRow): HistoryEntry {
   };
 }
 
+async function fetchSherdogHistoryFallback(
+  fighterName: string,
+  citoSlug: string,
+  now: string
+): Promise<FighterHistoryRow[]> {
+  const searchResult = await searchSherdogFighter(fighterName);
+
+  if (searchResult.status !== "matched") {
+    console.log(`[fighterSync] Sherdog fallback: ${searchResult.status} for "${fighterName}"`);
+    return [];
+  }
+
+  const historyResult = await fetchSherdogFightHistory(searchResult.profileUrl);
+
+  if (historyResult.status !== "ok") {
+    console.warn(`[fighterSync] Sherdog fallback error for "${fighterName}": ${historyResult.error}`);
+    return [];
+  }
+
+  if (historyResult.fights.length === 0) {
+    return [];
+  }
+
+  console.log(`[fighterSync] Sherdog fallback found ${historyResult.fights.length} fight(s): "${fighterName}"`);
+
+  return historyResult.fights
+    .filter((fight) => fight.opponent)
+    .map((fight) => ({
+      // Stored under Cito's slug (not Sherdog's own) so this fighter's
+      // history stays keyed the same way everywhere else in the app reads
+      // it — only the `source` tag records where the data actually came
+      // from.
+      fighter_slug: citoSlug,
+      fighter_name: fighterName,
+      opponent_slug: slugifyOpponentName(fight.opponent as string),
+      opponent_name: fight.opponent,
+      result: fight.result,
+      event_name: fight.event,
+      event_date: fight.eventDate,
+      location: null,
+      method: fight.method,
+      round: fight.round,
+      fight_time: fight.time,
+      source: "sherdog",
+      updated_at: now,
+    }));
+}
+
 export async function syncFighterHistory(
   fighterName: string,
   providerSlug: string | null
@@ -344,7 +421,7 @@ export async function syncFighterHistory(
 
   const now = new Date().toISOString();
 
-  const rows: FighterHistoryRow[] = fightsResult.fights.map((fight) => ({
+  let rows: FighterHistoryRow[] = fightsResult.fights.map((fight) => ({
     fighter_slug: providerSlug,
     fighter_name: fighterName,
     opponent_slug: fight.opponent?.slug ?? null,
@@ -359,6 +436,25 @@ export async function syncFighterHistory(
     source: "cito",
     updated_at: now,
   }));
+
+  // Cito's fight-history coverage is Octagon-only, so a genuinely UFC-new
+  // fighter comes back with no RESOLVED fights here — the one entry Cito
+  // does return for them is often just the upcoming/unresolved bout itself
+  // (result: null), not a real completed fight. Checking rows.length alone
+  // would never trigger this fallback, since that scheduled-bout entry
+  // means the array is never actually empty. Sherdog covers regional/
+  // pre-UFC promotions Cito never will, so it's worth a fallback attempt
+  // specifically when Cito has no resolved result to show — never used to
+  // override real Cito data, only to fill a genuine gap.
+  const hasResolvedCitoHistory = rows.some((row) => !!row.result);
+
+  if (!hasResolvedCitoHistory) {
+    console.log(`[fighterSync] no resolved Cito history — trying Sherdog fallback: "${fighterName}"`);
+    const sherdogRows = await fetchSherdogHistoryFallback(fighterName, providerSlug, now);
+    if (sherdogRows.length > 0) {
+      rows = sherdogRows;
+    }
+  }
 
   const saved = await upsertHistoryRows(rows);
   if (!saved) {
