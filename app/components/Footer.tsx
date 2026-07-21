@@ -1,4 +1,5 @@
 import Link from "next/link";
+import FooterWordmark from "./FooterWordmark";
 
 const PRODUCT_LINKS = [
   { label: "Methodology", href: "/methodology" },
@@ -20,7 +21,7 @@ export default function Footer() {
           {/* Left */}
           <div className="footer-brand">
             <div className="footer-brand-name">
-              <span className="footer-wordmark">Pick'em Labs</span>
+              <FooterWordmark />
               <span className="footer-parent">a PickMeLabs company</span>
             </div>
             <p className="footer-desc">

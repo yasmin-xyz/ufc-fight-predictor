@@ -1905,24 +1905,69 @@ body {
 .footer-brand-name {
   display: flex;
   flex-direction: column;
-  /* Deliberately much tighter than .footer-brand's own 8px gap between
-     this block and .footer-desc below it — wordmark + parent-company
-     line need to read as one grouped unit, not three stacked lines of
-     equal weight. */
-  gap: 1px;
+  /* Still tighter than .footer-brand's own 8px gap between this block and
+     .footer-desc below it — wordmark + parent-company line read as one
+     grouped unit, not three stacked lines of equal weight — but needs
+     more room than 1px now that the wordmark is a taller logo lockup
+     rather than a single line of plain text. */
+  gap: 4px;
 }
 
-.footer-wordmark {
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
+.footer-logo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.footer-logo-img {
+  height: 18px;
+  width: 18px;
+  object-fit: contain;
+  transform: translateY(2px);
+}
+
+.footer-logo-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer-logo-letters {
+  display: inline-flex;
+  align-items: center;
+  gap: 0px;
+  letter-spacing: -0.04em;
+}
+
+.footer-ltr {
+  font-family: 'Titan One', sans-serif;
+  font-size: 15px;
+  color: #ffffff;
+  line-height: 1;
+  display: inline-block;
+  letter-spacing: -0.04em;
+  -webkit-text-stroke: 0.9px rgba(0,0,0,0.9);
+  paint-order: stroke fill;
+  text-shadow: 1px 1px 0px var(--accent-primary), 2px 2px 0px var(--accent-deep);
+}
+
+.footer-logo-labs {
+  font-family: 'Inter', sans-serif;
+  font-size: 8px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-top: 2px;
 }
 
 .footer-parent {
-  font-size: 10px;
+  font-size: 8.5px;
   color: rgba(255, 255, 255, 0.32);
+  /* Aligns under the wordmark lettering, not the icon — matches
+     .footer-logo-img's width (18px) + .footer-logo's gap (5px), so this
+     reads as the wordmark's subtitle instead of a caption on the icon. */
+  margin-left: 23px;
 }
 
 .footer-desc {
@@ -1949,7 +1994,10 @@ body {
 .footer-col {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  /* Tighter than .footer-col-list's own 6px item gap, so the heading
+     reads as attached to its list rather than floating above it as a
+     separate element. */
+  gap: 5px;
 }
 
 .footer-col-heading {
@@ -2018,14 +2066,13 @@ body {
   }
 
   .footer-links {
-    gap: 20px;
+    gap: 24px;
   }
 }
 
 @media (max-width: 430px) {
   .footer-links {
-    flex-direction: column;
-    gap: 16px;
+    gap: 20px;
   }
 }
 /* ========================================
