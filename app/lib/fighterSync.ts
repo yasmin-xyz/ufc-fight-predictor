@@ -1,3 +1,4 @@
+import "server-only";
 import { normalizeFighterName } from "./fighterName";
 import {
   searchCitoFighter,

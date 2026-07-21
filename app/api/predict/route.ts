@@ -2,8 +2,19 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { GoogleGenAI } from "@google/genai";
-import { createClient } from "@supabase/supabase-js";
 import { normalizeFighterName } from "../../lib/fighterName";
+import { supabaseAdmin } from "../../lib/supabaseAdmin";
+import {
+  ValidationError,
+  readJsonBody,
+  assertPlainObject,
+  assertKnownKeys,
+  assertRequiredString,
+  assertFiniteNumber,
+  assertLooseScalar,
+  withTimeout,
+} from "../../lib/httpValidation";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "../../lib/rateLimit";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -17,15 +28,115 @@ const google = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SECRET_KEY!,
-  {
-    auth: {
-      persistSession: false,
-    },
+const supabase = supabaseAdmin;
+
+// Conservative starting point for the highest-cost route in the app (each
+// uncached request fans out to three paid LLM providers). Cached fight_key
+// reads never reach this check. Tune from real traffic once deployed.
+const SHORT_WINDOW_SECONDS = 10 * 60;
+const SHORT_WINDOW_LIMIT = 5;
+const DAILY_WINDOW_SECONDS = 24 * 60 * 60;
+const DAILY_WINDOW_LIMIT = 20;
+
+const MAX_BODY_BYTES = 20_000;
+const PROVIDER_TIMEOUT_MS = 25_000;
+
+const STATS_FIELDS = [
+  "id",
+  "name",
+  "nickname",
+  "headshot",
+  "record",
+  "height",
+  "weight",
+  "reach",
+  "stance",
+  "age",
+  "style",
+  "gym",
+  "country",
+  "flag",
+];
+
+const METRICS_FIELDS = [
+  "slpm",
+  "strAcc",
+  "sapm",
+  "strDef",
+  "tdAvg",
+  "tdAcc",
+  "tdDef",
+  "subAvg",
+];
+
+const TOP_LEVEL_FIELDS = [
+  "fighterA",
+  "fighterB",
+  "oddsA",
+  "oddsB",
+  "fighterAMetricsSource",
+  "fighterBMetricsSource",
+  "fighterAStats",
+  "fighterBStats",
+  "fighterAMetrics",
+  "fighterBMetrics",
+];
+
+function validateStatsObject(value: unknown, label: string): Record<string, unknown> | undefined {
+  if (value === undefined || value === null) return undefined;
+  const obj = assertPlainObject(value, label);
+  assertKnownKeys(obj, STATS_FIELDS, label);
+  for (const field of STATS_FIELDS) {
+    assertLooseScalar(obj[field], `${label}.${field}`, field === "headshot" || field === "flag" ? 500 : 300);
   }
-);
+  return obj;
+}
+
+function validateMetricsObject(value: unknown, label: string): Record<string, unknown> | undefined {
+  if (value === undefined || value === null) return undefined;
+  const obj = assertPlainObject(value, label);
+  assertKnownKeys(obj, METRICS_FIELDS, label);
+  for (const field of METRICS_FIELDS) {
+    assertLooseScalar(obj[field], `${label}.${field}`, 50);
+  }
+  return obj;
+}
+
+// Strict runtime shape check for the untrusted request body before any of
+// it reaches an LLM prompt or a provider call. Rejects unknown top-level
+// and nested fields, oversized strings, and non-finite numbers — an
+// attacker cannot inject arbitrary system-prompt text, huge payloads, or
+// NaN/Infinity through this endpoint.
+function validatePredictBody(raw: unknown) {
+  const body = assertPlainObject(raw, "body");
+  assertKnownKeys(body, TOP_LEVEL_FIELDS, "body");
+
+  const fighterA = assertRequiredString(body.fighterA, "fighterA", 150);
+  const fighterB = assertRequiredString(body.fighterB, "fighterB", 150);
+  const oddsA = assertFiniteNumber(body.oddsA, "oddsA");
+  const oddsB = assertFiniteNumber(body.oddsB, "oddsB");
+  const fighterAMetricsSource = assertRequiredString(body.fighterAMetricsSource, "fighterAMetricsSource", 150);
+  const fighterBMetricsSource = assertRequiredString(body.fighterBMetricsSource, "fighterBMetricsSource", 150);
+
+  const fighterAStats = validateStatsObject(body.fighterAStats, "fighterAStats");
+  const fighterBStats = validateStatsObject(body.fighterBStats, "fighterBStats");
+  const fighterAMetrics = validateMetricsObject(body.fighterAMetrics, "fighterAMetrics");
+  const fighterBMetrics = validateMetricsObject(body.fighterBMetrics, "fighterBMetrics");
+
+  return {
+    fighterA,
+    fighterB,
+    oddsA,
+    oddsB,
+    fighterAMetricsSource,
+    fighterBMetricsSource,
+    fighterAStats,
+    fighterBStats,
+    fighterAMetrics,
+    fighterBMetrics,
+  };
+}
+
 
 // Bumped whenever the prompt, consensus logic, or data-flow changes in a way
 // that makes previously-cached rows unreliable. v5 specifically invalidates
@@ -218,7 +329,17 @@ Be concise. Readers do not want to read long paragraphs — every sentence must 
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    let body;
+    try {
+      const raw = await readJsonBody(request, MAX_BODY_BYTES);
+      body = validatePredictBody(raw);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      throw error;
+    }
+
     const { fighterA, fighterB, oddsA, oddsB } = body;
 
     const validationErrors = validateFighterData(body);
@@ -260,27 +381,52 @@ export async function POST(request: Request) {
       );
     }
 
+    // Only cache misses reach the rate limiter — a cache hit never
+    // triggers a paid provider call, so it shouldn't count against the
+    // budget of a legitimate user re-viewing the same fight.
+    const clientIp = getClientIp(request);
+
+    const [shortLimit, dailyLimit] = await Promise.all([
+      checkRateLimit(`predict:short:${clientIp}`, SHORT_WINDOW_SECONDS, SHORT_WINDOW_LIMIT),
+      checkRateLimit(`predict:daily:${clientIp}`, DAILY_WINDOW_SECONDS, DAILY_WINDOW_LIMIT),
+    ]);
+
+    const bindingLimit = !shortLimit.allowed ? shortLimit : !dailyLimit.allowed ? dailyLimit : null;
+
+    if (bindingLimit) {
+      return rateLimitResponse(bindingLimit.retryAfterSeconds);
+    }
+
     const prompt = buildPrompt(body);
 
     const [claudeResult, gptResult, geminiResult] = await Promise.allSettled([
-      anthropic.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1000,
-        messages: [{ role: "user", content: prompt }],
-      }),
+      withTimeout(
+        anthropic.messages.create({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1000,
+          messages: [{ role: "user", content: prompt }],
+        }),
+        PROVIDER_TIMEOUT_MS
+      ),
 
-      openai.responses.create({
-        model: "gpt-5.4-mini",
-        input: prompt,
-      }),
+      withTimeout(
+        openai.responses.create({
+          model: "gpt-5.4-mini",
+          input: prompt,
+        }),
+        PROVIDER_TIMEOUT_MS
+      ),
 
-      google.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        },
-      }),
+      withTimeout(
+        google.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+          },
+        }),
+        PROVIDER_TIMEOUT_MS
+      ),
     ]);
 
     let claude = null;
@@ -288,29 +434,37 @@ export async function POST(request: Request) {
     let gemini = null;
 
     if (claudeResult.status === "fulfilled") {
-      const content = claudeResult.value.content[0];
+      try {
+        const content = claudeResult.value.content[0];
 
-      if (content.type === "text") {
-        claude = normalizePrediction(
-          JSON.parse(cleanJson(content.text)),
-          fighterA,
-          fighterB,
-          oddsA,
-          oddsB
-        );
+        if (content.type === "text") {
+          claude = normalizePrediction(
+            JSON.parse(cleanJson(content.text)),
+            fighterA,
+            fighterB,
+            oddsA,
+            oddsB
+          );
+        }
+      } catch (error) {
+        console.error("Claude JSON parse error:", error);
       }
     } else {
       console.error("Claude API error:", claudeResult.reason);
     }
 
     if (gptResult.status === "fulfilled") {
-      gpt = normalizePrediction(
-        JSON.parse(cleanJson(gptResult.value.output_text)),
-        fighterA,
-        fighterB,
-        oddsA,
-        oddsB
-      );
+      try {
+        gpt = normalizePrediction(
+          JSON.parse(cleanJson(gptResult.value.output_text)),
+          fighterA,
+          fighterB,
+          oddsA,
+          oddsB
+        );
+      } catch (error) {
+        console.error("GPT JSON parse error:", error);
+      }
     } else {
       console.error("GPT API error:", gptResult.reason);
     }

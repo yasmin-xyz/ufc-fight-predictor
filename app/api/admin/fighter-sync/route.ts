@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+import { createHash, timingSafeEqual } from "crypto";
 import { fetchCurrentUfcEvent } from "../../../lib/ufcEvent";
 import { peekFighterMetrics, peekFighterHistory, syncFighter } from "../../../lib/fighterSync";
 import { resetCitoCallCount, getCitoCallCount } from "../../../lib/citoProvider";
+import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "../../../lib/rateLimit";
 
 // Manual preload workflow: run this whenever ESPN publishes/changes the next
 // event, so ordinary page views never wait on Cito. Not a recurring cron —
@@ -11,6 +14,23 @@ import { resetCitoCallCount, getCitoCallCount } from "../../../lib/citoProvider"
 // Vercel execution time headroom for a cold run across a full card.
 export const maxDuration = 300;
 
+const RATE_LIMIT_WINDOW_SECONDS = 60 * 60;
+const RATE_LIMIT_MAX_REQUESTS = 10;
+
+const LOCK_NAME = "fighter-sync";
+// A little over maxDuration, so a lock from a run that crashed without
+// releasing it self-expires instead of blocking every future run forever.
+const LOCK_MAX_AGE_SECONDS = 360;
+
+// Fixed-length digest comparison so a mismatched secret length can't be
+// inferred from a thrown-vs-not-thrown difference, and timingSafeEqual
+// compares equal-size buffers either way.
+function timingSafeCompare(a: string, b: string): boolean {
+  const hashA = createHash("sha256").update(a).digest();
+  const hashB = createHash("sha256").update(b).digest();
+  return timingSafeEqual(hashA, hashB);
+}
+
 function isAuthorized(request: Request): boolean {
   const configuredSecret = process.env.FIGHTER_SYNC_SECRET;
 
@@ -19,13 +39,51 @@ function isAuthorized(request: Request): boolean {
     return false;
   }
 
-  const providedSecret = request.headers.get("x-fighter-sync-secret");
-  return providedSecret === configuredSecret;
+  const authHeader = request.headers.get("authorization") || "";
+  const match = authHeader.match(/^Bearer (.+)$/);
+  if (!match) return false;
+
+  return timingSafeCompare(match[1], configuredSecret);
+}
+
+async function acquireLock(): Promise<boolean> {
+  const { data, error } = await supabaseAdmin.rpc("acquire_sync_lock", {
+    p_lock_name: LOCK_NAME,
+    p_max_age_seconds: LOCK_MAX_AGE_SECONDS,
+  });
+
+  if (error) {
+    console.error("[admin/fighter-sync] lock check failed, proceeding without it:", error.message);
+    return true;
+  }
+
+  return !!data;
+}
+
+async function releaseLock() {
+  const { error } = await supabaseAdmin.rpc("release_sync_lock", { p_lock_name: LOCK_NAME });
+  if (error) {
+    console.error("[admin/fighter-sync] lock release failed:", error.message);
+  }
 }
 
 export async function POST(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed, retryAfterSeconds } = await checkRateLimit(
+    `fighter-sync:${getClientIp(request)}`,
+    RATE_LIMIT_WINDOW_SECONDS,
+    RATE_LIMIT_MAX_REQUESTS
+  );
+
+  if (!allowed) {
+    return rateLimitResponse(retryAfterSeconds);
+  }
+
+  if (!(await acquireLock())) {
+    return NextResponse.json({ error: "A sync is already in progress" }, { status: 409 });
   }
 
   try {
@@ -132,9 +190,8 @@ export async function POST(request: Request) {
       error instanceof Error ? error.message : error
     );
 
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Fighter sync failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Fighter sync failed" }, { status: 500 });
+  } finally {
+    await releaseLock();
   }
 }
