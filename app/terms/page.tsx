@@ -20,9 +20,7 @@ export default function TermsPage() {
           <div className="meth-eyebrow">Legal</div>
           <h1 className="meth-title">Terms of Service</h1>
           <p className="meth-lead">
-            We've written these terms in plain English so they're easier to
-            understand while still explaining the rules for using Pick&apos;em
-            Labs.
+            These terms explain the rules for using Pick&apos;em Labs, along with your rights and responsibilities as a user.
           </p>
         </header>
 
