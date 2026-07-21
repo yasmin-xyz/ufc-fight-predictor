@@ -102,48 +102,6 @@ function metricWidth(value: string | number | undefined, max: number) {
   if (!num) return 0;
   return Math.min(Math.round((num / max) * 100), 100);
 }
-// ESPN represents "we don't have this" a few different ways depending on
-// the field — missing entirely (undefined), or a literal "--" placeholder
-// (seen on stance) — normalize all of them to null so the UI can show one
-// consistent, honest "Unknown" state instead of a bare dash that reads as
-// a rendering glitch.
-function formatBioValue(value: string | number | null | undefined): string | null {
-  if (value === null || value === undefined) return null;
-  const str = String(value).trim();
-  if (!str || /^-+$/.test(str)) return null;
-  return str;
-}
-
-// Cito's octagonDebut is the date of a fighter's first UFC bout. If it
-// falls within a day or two of the card being viewed, that IS this fight —
-// a much more reliable "UFC debut" signal than an empty history list,
-// since Cito's fight-history coverage can itself be incomplete for a real
-// veteran (a false "debut" label would be actively misleading, not just
-// an absent nice-to-have).
-function isUpcomingDebut(octagonDebut: string | null, fightDate: string | null | undefined): boolean {
-  if (!octagonDebut || !fightDate) return false;
-  const debutTime = new Date(octagonDebut).getTime();
-  const fightTime = new Date(fightDate).getTime();
-  if (Number.isNaN(debutTime) || Number.isNaN(fightTime)) return false;
-  return Math.abs(debutTime - fightTime) <= 2 * 24 * 60 * 60 * 1000;
-}
-
-// Distinct from the loading skeleton (a shimmering circle, meaning "still
-// fetching") — this is the terminal state for a fighter ESPN simply has no
-// headshot on file for, so it shouldn't look like an image that's still on
-// its way in. A generic silhouette (as social apps use for accounts with no
-// profile photo) reads as "no photo available" rather than "broken/loading".
-function FighterHeadshotPlaceholder({ className = "" }: { className?: string }) {
-  return (
-    <div className={`fighter-headshot fighter-headshot-placeholder ${className}`} aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8H4z" />
-      </svg>
-    </div>
-  );
-}
-
 function confidenceTier(value: number): "Low" | "Moderate" | "Strong" | "High" {
   if (value < 55) return "Low";
   if (value < 70) return "Moderate";
@@ -280,11 +238,6 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
   const [fighterAMetricsState, setFighterAMetricsState] = useState<string>("");
   const [fighterBMetricsState, setFighterBMetricsState] = useState<string>("");
 
-  // Cito's own record of each fighter's first UFC bout date — compared
-  // against the selected fight's date to flag an upcoming UFC debut.
-  const [fighterAOctagonDebut, setFighterAOctagonDebut] = useState<string | null>(null);
-  const [fighterBOctagonDebut, setFighterBOctagonDebut] = useState<string | null>(null);
-
   const [fighterAHistory, setFighterAHistory] = useState<any[]>([]);
   const [fighterBHistory, setFighterBHistory] = useState<any[]>([]);
   const [historyStatus, setHistoryStatus] = useState<"idle" | "loading" | "polling" | "ready" | "timeout" | "error">("idle");
@@ -324,8 +277,8 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
 
     const bookmaker = fight.odds?.bookmakers?.[0];
     const outcomes = bookmaker?.markets?.[0]?.outcomes || [];
-    const homeOdds = outcomes.find((o: any) => o.name === fight.odds?.fighterAOutcomeName);
-    const awayOdds = outcomes.find((o: any) => o.name === fight.odds?.fighterBOutcomeName);
+    const homeOdds = outcomes.find((o: any) => o.name === fight.fighterA);
+    const awayOdds = outcomes.find((o: any) => o.name === fight.fighterB);
 
     try {
       const res = await fetch("/api/predict", {
@@ -652,8 +605,6 @@ selectFight(defaultFight);
       setFighterBMetrics(data.metrics?.[fight.fighterB] || {});
       setFighterAMetricsState(aMetricsState);
       setFighterBMetricsState(bMetricsState);
-      setFighterAOctagonDebut(data.octagonDebut?.[fight.fighterA] || null);
-      setFighterBOctagonDebut(data.octagonDebut?.[fight.fighterB] || null);
 
       setFighterAHistory(data.history?.[fight.fighterA] || []);
       setFighterBHistory(data.history?.[fight.fighterB] || []);
@@ -683,8 +634,6 @@ selectFight(defaultFight);
         setFighterBMetrics({});
         setFighterAMetricsState("");
         setFighterBMetricsState("");
-        setFighterAOctagonDebut(null);
-        setFighterBOctagonDebut(null);
         setMetricsStatus("error");
 
         setFighterAHistory([]);
@@ -783,8 +732,8 @@ selectFight(defaultFight);
 
   const firstBookmaker = selectedFight?.odds?.bookmakers?.[0];
   const outcomes = firstBookmaker?.markets?.[0]?.outcomes || [];
-  const homeOdds = outcomes.find((o: any) => o.name === selectedFight?.odds?.fighterAOutcomeName);
-  const awayOdds = outcomes.find((o: any) => o.name === selectedFight?.odds?.fighterBOutcomeName);
+  const homeOdds = outcomes.find((o: any) => o.name === selectedFight?.fighterA);
+  const awayOdds = outcomes.find((o: any) => o.name === selectedFight?.fighterB);
   const { a: homeImplied, b: awayImplied } = normalizedImpliedProbabilities(homeOdds?.price, awayOdds?.price);
 
   // Which fighter did the consensus actually pick? Never assume fighterA —
@@ -813,34 +762,31 @@ selectFight(defaultFight);
 
   const oddsTimestampLabel = formatOddsTimestamp(oddsFetchedAt, now, oddsStale);
 
-  // Only requires ONE side to have data, not both — a fighter Cito has
-  // nothing on (e.g. a newer/lesser-known name) shouldn't hide the other
-  // fighter's perfectly good numbers. Missing individual values are shown
-  // per-row instead (see statRows below).
   const hasMetrics =
   metricsStatus === "ready" &&
-  (!!fighterAMetrics?.slpm || !!fighterBMetrics?.slpm);
+  !!fighterAMetrics?.slpm &&
+  !!fighterBMetrics?.slpm;
 const statRows = [
   {
     name: "Significant Strikes / min",
-    a: fighterAMetrics.slpm || null,
-    b: fighterBMetrics.slpm || null,
+    a: fighterAMetrics.slpm || "—",
+    b: fighterBMetrics.slpm || "—",
     aWidth: metricWidth(fighterAMetrics.slpm, 8),
     bWidth: metricWidth(fighterBMetrics.slpm, 8),
     aAdv: metricNumber(fighterAMetrics.slpm) >= metricNumber(fighterBMetrics.slpm),
   },
   {
     name: "Strike Accuracy",
-    a: fighterAMetrics.strAcc || null,
-    b: fighterBMetrics.strAcc || null,
+    a: fighterAMetrics.strAcc || "—",
+    b: fighterBMetrics.strAcc || "—",
     aWidth: metricWidth(fighterAMetrics.strAcc, 100),
     bWidth: metricWidth(fighterBMetrics.strAcc, 100),
     aAdv: metricNumber(fighterAMetrics.strAcc) >= metricNumber(fighterBMetrics.strAcc),
   },
   {
     name: "Strikes Absorbed / min",
-    a: fighterAMetrics.sapm || null,
-    b: fighterBMetrics.sapm || null,
+    a: fighterAMetrics.sapm || "—",
+    b: fighterBMetrics.sapm || "—",
     aWidth: metricWidth(fighterAMetrics.sapm, 8),
     bWidth: metricWidth(fighterBMetrics.sapm, 8),
   
@@ -849,40 +795,40 @@ const statRows = [
   },
   {
     name: "Strike Defense",
-    a: fighterAMetrics.strDef || null,
-    b: fighterBMetrics.strDef || null,
+    a: fighterAMetrics.strDef || "—",
+    b: fighterBMetrics.strDef || "—",
     aWidth: metricWidth(fighterAMetrics.strDef, 100),
     bWidth: metricWidth(fighterBMetrics.strDef, 100),
     aAdv: metricNumber(fighterAMetrics.strDef) >= metricNumber(fighterBMetrics.strDef),
   },
   {
     name: "Takedowns / 15min",
-    a: fighterAMetrics.tdAvg || null,
-    b: fighterBMetrics.tdAvg || null,
+    a: fighterAMetrics.tdAvg || "—",
+    b: fighterBMetrics.tdAvg || "—",
     aWidth: metricWidth(fighterAMetrics.tdAvg, 6),
     bWidth: metricWidth(fighterBMetrics.tdAvg, 6),
     aAdv: metricNumber(fighterAMetrics.tdAvg) >= metricNumber(fighterBMetrics.tdAvg),
   },
   {
     name: "Takedown Accuracy",
-    a: fighterAMetrics.tdAcc || null,
-    b: fighterBMetrics.tdAcc || null,
+    a: fighterAMetrics.tdAcc || "—",
+    b: fighterBMetrics.tdAcc || "—",
     aWidth: metricWidth(fighterAMetrics.tdAcc, 100),
     bWidth: metricWidth(fighterBMetrics.tdAcc, 100),
     aAdv: metricNumber(fighterAMetrics.tdAcc) >= metricNumber(fighterBMetrics.tdAcc),
   },
   {
     name: "Takedown Defense",
-    a: fighterAMetrics.tdDef || null,
-    b: fighterBMetrics.tdDef || null,
+    a: fighterAMetrics.tdDef || "—",
+    b: fighterBMetrics.tdDef || "—",
     aWidth: metricWidth(fighterAMetrics.tdDef, 100),
     bWidth: metricWidth(fighterBMetrics.tdDef, 100),
     aAdv: metricNumber(fighterAMetrics.tdDef) >= metricNumber(fighterBMetrics.tdDef),
   },
   {
     name: "Submission Attempts / 15min",
-    a: fighterAMetrics.subAvg || null,
-    b: fighterBMetrics.subAvg || null,
+    a: fighterAMetrics.subAvg || "—",
+    b: fighterBMetrics.subAvg || "—",
     aWidth: metricWidth(fighterAMetrics.subAvg, 3),
     bWidth: metricWidth(fighterBMetrics.subAvg, 3),
     aAdv: metricNumber(fighterAMetrics.subAvg) >= metricNumber(fighterBMetrics.subAvg),
@@ -1090,85 +1036,47 @@ const statRows = [
                   Physical comparison of both fighters, including age, height, reach, stance, and professional record.
                 </InfoTooltip>
               </div>
-              <span className="weight-pill">{selectedFight?.weightClass || "MMA"}</span>
+              <span className="weight-pill">MMA</span>
             </div>
             <div className="card-body card-body-flush">
               <div className="tot">
               <div className="fighter-a">
-  {!fighterAStats ? (
-    <div className="fighter-headshot skeleton-shimmer" aria-hidden="true" />
-  ) : fighterAStats.headshot ? (
+  {fighterAStats?.headshot ? (
     <img src={fighterAStats.headshot} alt={selectedFight?.fighterA} className="fighter-headshot" />
   ) : (
-    <FighterHeadshotPlaceholder />
+    <div className="fighter-headshot skeleton-shimmer" aria-hidden="true" />
   )}
   <div className="fighter-name">{selectedFight?.fighterA || "Loading..."}</div>
-                  {fighterAStats?.nickname && (
-                    <div className="fighter-nickname">&quot;{fighterAStats.nickname}&quot;</div>
-                  )}
-                  <div className="fighter-record-row">
-                    {fighterAStats?.flag && (
-                      <img src={fighterAStats.flag} alt="" className="fighter-flag" />
-                    )}
-                    <span className="fighter-record">{fighterAStats?.record || selectedFight?.recordA || "—"}</span>
-                  </div>
-                  {isUpcomingDebut(fighterAOctagonDebut, selectedFight?.date) && (
-                    <div className="fighter-debut-note">UFC Debut</div>
-                  )}
+                  <div className="fighter-record">{fighterAStats?.record || selectedFight?.recordA || "—"}</div>
                 </div>
                 <div className="vs-col">
                   <div className="vs-text">vs</div>
                 </div>
                 <div className="fighter-b">
-  {!fighterBStats ? (
-    <div className="fighter-headshot skeleton-shimmer" aria-hidden="true" />
-  ) : fighterBStats.headshot ? (
+  {fighterBStats?.headshot ? (
     <img src={fighterBStats.headshot} alt={selectedFight?.fighterB} className="fighter-headshot" />
   ) : (
-    <FighterHeadshotPlaceholder className="fighter-headshot-b" />
+    <div className="fighter-headshot skeleton-shimmer" aria-hidden="true" />
   )}
   <div className="fighter-name">{selectedFight?.fighterB || "Loading..."}</div>
-                  {fighterBStats?.nickname && (
-                    <div className="fighter-nickname">&quot;{fighterBStats.nickname}&quot;</div>
-                  )}
-                  <div className="fighter-record-row fighter-record-row-b">
-                    {fighterBStats?.flag && (
-                      <img src={fighterBStats.flag} alt="" className="fighter-flag" />
-                    )}
-                    <span className="fighter-record">{fighterBStats?.record || selectedFight?.recordB || "—"}</span>
-                  </div>
-                  {isUpcomingDebut(fighterBOctagonDebut, selectedFight?.date) && (
-                    <div className="fighter-debut-note">UFC Debut</div>
-                  )}
+                  <div className="fighter-record">{fighterBStats?.record || selectedFight?.recordB || "—"}</div>
                 </div>
               </div>
 
               <div className="tot-compare">
-                {(() => {
-                  const statsLoading = !fighterAStats || !fighterBStats;
-                  return [
-                    { label: "Age", a: fighterAStats?.age, b: fighterBStats?.age },
-                    { label: "Height", a: fighterAStats?.height, b: fighterBStats?.height },
-                    { label: "Reach", a: fighterAStats?.reach, b: fighterBStats?.reach },
-                    { label: "Stance", a: fighterAStats?.stance, b: fighterBStats?.stance },
-                    { label: "Style", a: fighterAStats?.style, b: fighterBStats?.style },
-                  ].map((row) => {
-                    const a = statsLoading ? null : formatBioValue(row.a);
-                    const b = statsLoading ? null : formatBioValue(row.b);
-                    const placeholder = statsLoading ? "Loading…" : "Unknown";
-                    return (
-                      <div key={row.label} className="tot-compare-row">
-                        <span className={`tot-compare-val ${a ? "" : "tot-compare-val-unknown"}`}>
-                          {a || placeholder}
-                        </span>
-                        <span className="tot-compare-label">{row.label}</span>
-                        <span className={`tot-compare-val ${b ? "" : "tot-compare-val-unknown"}`}>
-                          {b || placeholder}
-                        </span>
-                      </div>
-                    );
-                  });
-                })()}
+                {[
+                  { label: "Age", a: fighterAStats?.age, b: fighterBStats?.age },
+                  { label: "Height", a: fighterAStats?.height, b: fighterBStats?.height },
+                  { label: "Reach", a: fighterAStats?.reach, b: fighterBStats?.reach },
+                  { label: "Stance", a: fighterAStats?.stance, b: fighterBStats?.stance },
+                  { label: "Style", a: fighterAStats?.style, b: fighterBStats?.style },
+                ].map((row) => (
+                  <div key={row.label} className="tot-compare-row">
+                    <span className="tot-compare-val">{row.a || "—"}</span>
+                    <span className="tot-compare-label">{row.label}</span>
+                    <span className="tot-compare-val">{row.b || "—"}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -1212,16 +1120,10 @@ const statRows = [
     </>
   ) : hasMetrics ? (
     <div className="stat-grid">
-      {statRows.map((stat, i) => {
-        // A row where one side has no Cito data at all isn't a real
-        // "advantage" comparison — force neutral styling and hide that
-        // side's bar rather than let a missing value (treated as 0)
-        // default into looking like a real disadvantage.
-        const noComparison = stat.a === null || stat.b === null;
-        return (
+      {statRows.map((stat, i) => (
         <div key={i} className="stat-row">
-          <div className={`stat-val ${noComparison ? "" : stat.aAdv ? "stat-val-a" : "stat-val-b"} ${stat.a === null ? "stat-val-unknown" : ""}`} style={{ textAlign: "left" }}>
-            {stat.a === null ? "Unknown" : stat.a}
+          <div className={`stat-val ${stat.aAdv ? "stat-val-a" : "stat-val-b"}`} style={{ textAlign: "left" }}>
+            {stat.a}
           </div>
 
           <div className="stat-center">
@@ -1229,18 +1131,18 @@ const statRows = [
             <div className="bar-track">
               <div className="bar-left">
                 <div
-                  className={`bar-fill-a ${!noComparison && !stat.aAdv ? "dis" : ""}`}
+                  className={`bar-fill-a ${!stat.aAdv ? "dis" : ""}`}
                   style={{
-                    width: statsBarsVisible && stat.a !== null ? `${stat.aWidth}%` : "0%",
+                    width: statsBarsVisible ? `${stat.aWidth}%` : "0%",
                     transitionDelay: `${i * 80}ms`,
                   }}
                 ></div>
               </div>
               <div className="bar-right">
                 <div
-                  className={`bar-fill-b ${!noComparison && !stat.aAdv ? "adv" : ""}`}
+                  className={`bar-fill-b ${!stat.aAdv ? "adv" : ""}`}
                   style={{
-                    width: statsBarsVisible && stat.b !== null ? `${stat.bWidth}%` : "0%",
+                    width: statsBarsVisible ? `${stat.bWidth}%` : "0%",
                     transitionDelay: `${i * 80}ms`,
                   }}
                 ></div>
@@ -1248,12 +1150,11 @@ const statRows = [
             </div>
           </div>
 
-          <div className={`stat-val ${noComparison ? "" : !stat.aAdv ? "stat-val-a" : "stat-val-b"} ${stat.b === null ? "stat-val-unknown" : ""}`} style={{ textAlign: "right" }}>
-            {stat.b === null ? "Unknown" : stat.b}
+          <div className={`stat-val ${!stat.aAdv ? "stat-val-a" : "stat-val-b"}`} style={{ textAlign: "right" }}>
+            {stat.b}
           </div>
         </div>
-        );
-      })}
+      ))}
     </div>
   ) : (
     <div className={`ai-loading ${metricsStatus === "timeout" || metricsStatus === "error" ? "ai-loading-error" : ""}`}>
@@ -1435,8 +1336,8 @@ const statRows = [
 ) : selectedFight?.odds?.bookmakers?.length ? (
   selectedFight.odds.bookmakers.map((bookmaker: any, i: number) => {
     const outcomes = bookmaker.markets?.[0]?.outcomes || [];
-    const homeOdds = outcomes.find((o: any) => o.name === selectedFight.odds?.fighterAOutcomeName);
-    const awayOdds = outcomes.find((o: any) => o.name === selectedFight.odds?.fighterBOutcomeName);
+    const homeOdds = outcomes.find((o: any) => o.name === selectedFight.fighterA);
+    const awayOdds = outcomes.find((o: any) => o.name === selectedFight.fighterB);
     // Favorite/underdog by actual odds sign, not by column position.
     const homeIsFavorite = (homeOdds?.price ?? 0) < (awayOdds?.price ?? 0);
 
@@ -1741,7 +1642,7 @@ const statRows = [
               })()}
 
               <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.22)", textAlign: "center", marginTop: "12px" }}>
-                Fighter statistics and history via Cito API, with Sherdog as a fallback source for fighters without UFC fight history on record.
+                Fighter statistics and history via Cito API.
               </div>
             </div>
           </div>

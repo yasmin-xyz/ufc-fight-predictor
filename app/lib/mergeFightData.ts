@@ -96,35 +96,9 @@ export function mergeFightData(
         }
       }
 
-      // Callers look up each side's price by name (outcomes.find(o => o.name
-      // === fighterA)). That's an exact-string comparison against the ODDS
-      // API's own name for that fighter — fine when matchTier is "exact",
-      // but a surname-tier match means the given names differ (e.g. ESPN's
-      // "Steve Erceg" vs the odds API's "Stephen Erceg"), so that lookup
-      // would silently find nothing and every price would render as "—".
-      // Resolving the correspondence once here (by surname, which is what
-      // established the match in the first place) means callers never have
-      // to re-derive it via an exact-name comparison that only works for
-      // one of the two match tiers.
-      let fighterAOutcomeName: string | null = null;
-      let fighterBOutcomeName: string | null = null;
-
-      if (oddsMatch) {
-        const surnameA = surname(normA);
-        const homeSurname = surname(normalizeForOddsMatch(oddsMatch.home_team));
-
-        if (homeSurname === surnameA) {
-          fighterAOutcomeName = oddsMatch.home_team;
-          fighterBOutcomeName = oddsMatch.away_team;
-        } else {
-          fighterAOutcomeName = oddsMatch.away_team;
-          fighterBOutcomeName = oddsMatch.home_team;
-        }
-      }
-
       return {
         ...fight,
-        odds: oddsMatch ? { ...oddsMatch, fighterAOutcomeName, fighterBOutcomeName } : null,
+        odds: oddsMatch || null,
       };
     });
   }

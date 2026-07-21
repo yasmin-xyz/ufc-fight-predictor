@@ -40,11 +40,6 @@ export type CitoSearchFighter = {
   slug: string;
   name: string;
   stats: CitoFighterStats | null;
-  // Date of the fighter's first UFC bout, per Cito/UFC.com. Used to detect
-  // a UFC debut — comparing this against the fight-card date is a much
-  // more reliable signal than "we have no history rows for them", since
-  // Cito's own fight-history coverage can be incomplete for a real veteran.
-  octagonDebut: string | null;
 };
 
 export type CitoFightHistoryEntry = {
