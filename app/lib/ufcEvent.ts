@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 export type UfcEventFight = {
   id: string;
   date: string;
@@ -51,7 +53,7 @@ function findNextEvent(calendar: any[] | undefined, currentEventName: string): U
 
 // Shared by the public /api/ufc-event route and the admin fighter-sync
 // endpoint, so both read the exact same ESPN parsing logic.
-export async function fetchCurrentUfcEvent(): Promise<UfcEvent | null> {
+async function fetchCurrentUfcEventUncached(): Promise<UfcEvent | null> {
   const res = await fetch(
     "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard",
     { cache: "no-store" }
@@ -100,3 +102,15 @@ export async function fetchCurrentUfcEvent(): Promise<UfcEvent | null> {
     nextEvent,
   };
 }
+
+// ESPN's scoreboard is free/unauthenticated, so this cache exists for
+// consistency and to avoid hammering it on every page load/refresh rather
+// than for cost control — a much shorter window than the paid odds cache,
+// since fight-card info (odds, weigh-in results) can change same-day.
+const UFC_EVENT_REVALIDATE_SECONDS = 5 * 60;
+
+export const fetchCurrentUfcEvent = unstable_cache(
+  fetchCurrentUfcEventUncached,
+  ["ufc-current-event"],
+  { revalidate: UFC_EVENT_REVALIDATE_SECONDS }
+);

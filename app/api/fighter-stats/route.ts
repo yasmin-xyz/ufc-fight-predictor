@@ -1,14 +1,33 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "../../lib/rateLimit";
+
+const RATE_LIMIT_WINDOW_SECONDS = 60;
+const RATE_LIMIT_MAX_REQUESTS = 60;
+
+// ESPN athlete IDs are always numeric — this endpoint concatenates `id`
+// directly into the outbound ESPN URL, so a strict numeric check here is
+// what stops arbitrary path/query injection into that proxied request.
+const VALID_ID = /^[0-9]{1,15}$/;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
-  if (!id) {
+  if (!id || !VALID_ID.test(id)) {
     return NextResponse.json(
-      { error: "Missing fighter id" },
+      { error: "Missing or invalid fighter id" },
       { status: 400 }
     );
+  }
+
+  const { allowed, retryAfterSeconds } = await checkRateLimit(
+    `fighter-stats:${getClientIp(request)}`,
+    RATE_LIMIT_WINDOW_SECONDS,
+    RATE_LIMIT_MAX_REQUESTS
+  );
+
+  if (!allowed) {
+    return rateLimitResponse(retryAfterSeconds);
   }
 
   try {

@@ -1,7 +1,8 @@
+import "server-only";
 import { namesMatchExactly } from "./fighterName";
 
-// Server-only. Never import this from a client component — it reads
-// CITO_API_KEY from process.env and that must never reach the browser.
+// Enforced by the server-only import above — it reads CITO_API_KEY from
+// process.env and that must never reach the browser.
 const CITO_API_KEY = process.env.CITO_API_KEY;
 const CITO_BASE_URL = "https://api.citoapi.com/api/v1/ufc";
 

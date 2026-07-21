@@ -9,6 +9,13 @@ import {
 } from "../../lib/fighterSync";
 import { isCitoConfigured } from "../../lib/citoProvider";
 import { fighterMetrics as staticFighterMetrics } from "../../data/fighterMetrics";
+import { ValidationError, readJsonBody } from "../../lib/httpValidation";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "../../lib/rateLimit";
+
+const MAX_BODY_BYTES = 5_000;
+const MAX_NAME_LENGTH = 100;
+const RATE_LIMIT_WINDOW_SECONDS = 60;
+const RATE_LIMIT_MAX_REQUESTS = 30;
 
 type MetricsStatus = "cached" | "static-fallback" | "syncing" | "unavailable";
 type HistoryStatus = "cached" | "syncing" | "unavailable";
@@ -101,18 +108,37 @@ async function buildFighterPayload(name: string): Promise<FighterPayload> {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const { allowed, retryAfterSeconds } = await checkRateLimit(
+      `fighter-metrics:${getClientIp(request)}`,
+      RATE_LIMIT_WINDOW_SECONDS,
+      RATE_LIMIT_MAX_REQUESTS
+    );
+
+    if (!allowed) {
+      return rateLimitResponse(retryAfterSeconds);
+    }
+
+    let body: any;
+    try {
+      body = await readJsonBody(request, MAX_BODY_BYTES);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      throw error;
+    }
+
     const names = body?.names;
 
     if (
       !Array.isArray(names) ||
       names.length === 0 ||
-      !names.every((name) => typeof name === "string")
+      !names.every((name) => typeof name === "string" && name.length <= MAX_NAME_LENGTH)
     ) {
       return NextResponse.json(
         {
           error:
-            'Send a JSON body like: { "names": ["Kamaru Usman", "Dricus Du Plessis"] }',
+            'Send a JSON body like: { "names": ["Kamaru Usman", "Dricus Du Plessis"] } (each name up to 100 characters)',
         },
         { status: 400 }
       );
@@ -167,11 +193,6 @@ export async function POST(request: Request) {
       error instanceof Error ? error.message : error
     );
 
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Failed to load fighter metrics",
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to load fighter metrics" }, { status: 500 });
   }
 }

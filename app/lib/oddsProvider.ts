@@ -1,3 +1,4 @@
+import "server-only";
 import axios from "axios";
 
 // Pure "talk to the-odds-api.com" concern — no caching, no fallback
