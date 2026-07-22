@@ -939,6 +939,7 @@ const statRows = [
 
   const fighterARank = getFighterRank(selectedFight?.weightClass, selectedFight?.fighterA);
   const fighterBRank = getFighterRank(selectedFight?.weightClass, selectedFight?.fighterB);
+  const showRankRow = !!(fighterARank || fighterBRank);
 
   return (
     <main>
@@ -1154,9 +1155,9 @@ const statRows = [
   ) : (
     <FighterHeadshotPlaceholder />
   )}
-  {fighterARank && (
-    <div className={`fighter-rank ${fighterARank.isChampion ? "fighter-rank-champ" : ""}`}>
-      {fighterARank.isChampion ? "Champion" : `#${fighterARank.rank}`}
+  {showRankRow && (
+    <div className={`fighter-rank ${fighterARank?.isChampion ? "fighter-rank-champ" : ""}`}>
+      {fighterARank ? (fighterARank.isChampion ? "Champion" : `#${fighterARank.rank}`) : " "}
     </div>
   )}
   <div className="fighter-name">{selectedFight?.fighterA || "Loading..."}</div>
@@ -1172,7 +1173,9 @@ const statRows = [
                     <span className="fighter-record">{fighterAStats?.record || selectedFight?.recordA || "—"}</span>
                   </div>
                   {isUpcomingDebut(fighterAOctagonDebut, selectedFight?.date) && (
-                    <div className="fighter-debut-note">UFC Debut</div>
+                    <InfoTooltip label="UFC Debut" width={200} trigger="UFC Debut" triggerClassName="fighter-debut-note">
+                      This fighter is new to the UFC, so public data on them (stats, fight history) may be limited.
+                    </InfoTooltip>
                   )}
                 </div>
                 <div className="vs-col">
@@ -1186,9 +1189,9 @@ const statRows = [
   ) : (
     <FighterHeadshotPlaceholder className="fighter-headshot-b" />
   )}
-  {fighterBRank && (
-    <div className={`fighter-rank ${fighterBRank.isChampion ? "fighter-rank-champ" : ""}`}>
-      {fighterBRank.isChampion ? "Champion" : `#${fighterBRank.rank}`}
+  {showRankRow && (
+    <div className={`fighter-rank ${fighterBRank?.isChampion ? "fighter-rank-champ" : ""}`}>
+      {fighterBRank ? (fighterBRank.isChampion ? "Champion" : `#${fighterBRank.rank}`) : " "}
     </div>
   )}
   <div className="fighter-name">{selectedFight?.fighterB || "Loading..."}</div>
@@ -1204,7 +1207,9 @@ const statRows = [
                     <span className="fighter-record">{fighterBStats?.record || selectedFight?.recordB || "—"}</span>
                   </div>
                   {isUpcomingDebut(fighterBOctagonDebut, selectedFight?.date) && (
-                    <div className="fighter-debut-note">UFC Debut</div>
+                    <InfoTooltip label="UFC Debut" width={200} trigger="UFC Debut" triggerClassName="fighter-debut-note">
+                      This fighter is new to the UFC, so public data on them (stats, fight history) may be limited.
+                    </InfoTooltip>
                   )}
                 </div>
               </div>
