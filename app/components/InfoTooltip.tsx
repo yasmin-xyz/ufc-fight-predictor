@@ -23,10 +23,17 @@ export default function InfoTooltip({
   label,
   children,
   width = 240,
+  trigger,
+  triggerClassName,
 }: {
   label: string;
   children: React.ReactNode;
   width?: number;
+  // When provided, this renders as the trigger itself (e.g. an existing
+  // badge) instead of the default "i" icon — for cases where the icon
+  // would be redundant with something already there to hover/tap.
+  trigger?: React.ReactNode;
+  triggerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -141,8 +148,8 @@ export default function InfoTooltip({
       <button
         ref={btnRef}
         type="button"
-        className="info-tooltip-btn"
-        aria-label={`${label} info`}
+        className={trigger ? `info-tooltip-btn-custom ${triggerClassName || ""}` : "info-tooltip-btn"}
+        aria-label={trigger ? undefined : `${label} info`}
         aria-expanded={open}
         aria-controls={panelId}
         aria-describedby={panelId}
@@ -152,7 +159,7 @@ export default function InfoTooltip({
         onFocus={openNow}
         onBlur={handleBlur}
       >
-        i
+        {trigger || "i"}
       </button>
 
       {mounted &&

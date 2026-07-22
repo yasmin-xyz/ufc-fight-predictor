@@ -1173,12 +1173,9 @@ const statRows = [
                     <span className="fighter-record">{fighterAStats?.record || selectedFight?.recordA || "—"}</span>
                   </div>
                   {isUpcomingDebut(fighterAOctagonDebut, selectedFight?.date) && (
-                    <div className="fighter-debut-note">
-                      UFC Debut
-                      <InfoTooltip label="UFC Debut" width={200}>
-                        This fighter is new to the UFC, so public data on them (stats, fight history) may be limited.
-                      </InfoTooltip>
-                    </div>
+                    <InfoTooltip label="UFC Debut" width={200} trigger="UFC Debut" triggerClassName="fighter-debut-note">
+                      This fighter is new to the UFC, so public data on them (stats, fight history) may be limited.
+                    </InfoTooltip>
                   )}
                 </div>
                 <div className="vs-col">
@@ -1210,12 +1207,9 @@ const statRows = [
                     <span className="fighter-record">{fighterBStats?.record || selectedFight?.recordB || "—"}</span>
                   </div>
                   {isUpcomingDebut(fighterBOctagonDebut, selectedFight?.date) && (
-                    <div className="fighter-debut-note">
-                      UFC Debut
-                      <InfoTooltip label="UFC Debut" width={200}>
-                        This fighter is new to the UFC, so public data on them (stats, fight history) may be limited.
-                      </InfoTooltip>
-                    </div>
+                    <InfoTooltip label="UFC Debut" width={200} trigger="UFC Debut" triggerClassName="fighter-debut-note">
+                      This fighter is new to the UFC, so public data on them (stats, fight history) may be limited.
+                    </InfoTooltip>
                   )}
                 </div>
               </div>
