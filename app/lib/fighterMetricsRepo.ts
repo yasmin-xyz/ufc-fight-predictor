@@ -2,10 +2,24 @@ import { supabaseAdmin } from "./supabaseAdmin";
 
 export const FRESHNESS_DAYS = 30;
 
+// A "not found" answer needs to self-correct far faster than a real
+// synced result — Cito can add a fighter to its system within hours of
+// them being confirmed for a card. Trusting "not found" for the same 30
+// days as real data left several fighters (and everything gated on their
+// Cito slug — history, the Sherdog fallback) stuck showing nothing for
+// weeks after Cito actually had them.
+export const NOT_FOUND_FRESHNESS_HOURS = 6;
+
 export function isFresh(timestamp: string | null | undefined, days = FRESHNESS_DAYS): boolean {
   if (!timestamp) return false;
   const age = Date.now() - new Date(timestamp).getTime();
   return age < days * 24 * 60 * 60 * 1000;
+}
+
+export function isFreshHours(timestamp: string | null | undefined, hours: number): boolean {
+  if (!timestamp) return false;
+  const age = Date.now() - new Date(timestamp).getTime();
+  return age < hours * 60 * 60 * 1000;
 }
 
 export type FighterMetricsRow = {
@@ -25,6 +39,7 @@ export type FighterMetricsRow = {
   source_updated_at: string | null;
   last_synced_at: string | null;
   updated_at: string;
+  octagon_debut?: string | null;
 };
 
 export async function getCachedMetrics(normalizedName: string) {

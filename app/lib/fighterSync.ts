@@ -5,15 +5,40 @@ import {
   fetchCitoFighterFights,
   type CitoFighterStats,
 } from "./citoProvider";
+import { searchSherdogFighter, fetchSherdogFightHistory } from "./sherdogProvider";
 import {
   getCachedMetrics,
   upsertMetrics,
   getCachedHistory,
   upsertHistoryRows,
   isFresh,
+  isFreshHours,
+  NOT_FOUND_FRESHNESS_HOURS,
   type FighterMetricsRow,
   type FighterHistoryRow,
 } from "./fighterMetricsRepo";
+
+// A cached "not found" row uses its own, much shorter freshness window
+// than a real synced result (see NOT_FOUND_FRESHNESS_HOURS) — Cito can add
+// a fighter to its system within hours of them being confirmed for a
+// card, so trusting a stale "not found" answer for 30 days like real data
+// left several fighters permanently stuck with no metrics, no history,
+// and no Sherdog fallback (which needs a real Cito slug to key its rows
+// under) until the marker was manually cleared.
+function isMetricsRowFresh(row: { source: string | null; last_synced_at: string | null }): boolean {
+  if (row.source === "cito-not-found") {
+    return isFreshHours(row.last_synced_at, NOT_FOUND_FRESHNESS_HOURS);
+  }
+  return isFresh(row.last_synced_at);
+}
+
+function slugifyOpponentName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-");
+}
 
 export type MappedMetrics = {
   slpm: string | null;
@@ -76,6 +101,7 @@ export type MetricsPeekResult = {
   status: "cached" | "missing" | "known_unavailable";
   needsRefresh: boolean;
   metrics: MappedMetrics | null;
+  octagonDebut: string | null;
 };
 
 // Supabase-only read, no Cito calls. Used by the read-first fighter-metrics
@@ -85,7 +111,7 @@ export async function peekFighterMetrics(fighterName: string): Promise<MetricsPe
   const cached = await getCachedMetrics(normalizedName);
 
   if (!cached) {
-    return { normalizedName, providerSlug: null, status: "missing", needsRefresh: true, metrics: null };
+    return { normalizedName, providerSlug: null, status: "missing", needsRefresh: true, metrics: null, octagonDebut: null };
   }
 
   if (cached.source === "cito-not-found") {
@@ -93,8 +119,9 @@ export async function peekFighterMetrics(fighterName: string): Promise<MetricsPe
       normalizedName,
       providerSlug: null,
       status: "known_unavailable",
-      needsRefresh: !isFresh(cached.last_synced_at),
+      needsRefresh: !isMetricsRowFresh(cached),
       metrics: null,
+      octagonDebut: null,
     };
   }
 
@@ -104,6 +131,7 @@ export async function peekFighterMetrics(fighterName: string): Promise<MetricsPe
     status: "cached",
     needsRefresh: !isFresh(cached.last_synced_at),
     metrics: rowToMapped(cached),
+    octagonDebut: cached.octagon_debut ?? null,
   };
 }
 
@@ -144,19 +172,21 @@ export type MetricsSyncResult = {
   cacheStatus: MetricsCacheStatus;
   providerSlug: string | null;
   metrics: MappedMetrics | null;
+  octagonDebut: string | null;
 };
 
 export async function syncFighterMetrics(fighterName: string): Promise<MetricsSyncResult> {
   const normalizedName = normalizeFighterName(fighterName);
   const cached = await getCachedMetrics(normalizedName);
 
-  if (cached && isFresh(cached.last_synced_at)) {
+  if (cached && isMetricsRowFresh(cached)) {
     console.log(`[fighterSync] cache hit (metrics): "${fighterName}"`);
     return {
       normalizedName,
       cacheStatus: "hit",
       providerSlug: cached.provider_slug,
       metrics: rowToMapped(cached),
+      octagonDebut: cached.octagon_debut ?? null,
     };
   }
 
@@ -168,13 +198,21 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
       `[fighterSync] provider match failure (${searchResult.status}): "${fighterName}"`
     );
 
-    if (cached) {
+    // Only a real previously-synced row is worth falling back to here — a
+    // cached "not found" marker has no actual data behind it, so falling
+    // back to it would just return the same stale marker forever without
+    // ever refreshing last_synced_at, permanently defeating the shorter
+    // not-found freshness window below (every future request would see it
+    // as stale and re-trigger a background sync, forever, for a fighter
+    // Cito may still genuinely not have).
+    if (cached && cached.source !== "cito-not-found") {
       console.warn(`[fighterSync] falling back to stale cached metrics: "${fighterName}"`);
       return {
         normalizedName,
         cacheStatus: "stale_fallback",
         providerSlug: cached.provider_slug,
         metrics: rowToMapped(cached),
+        octagonDebut: cached.octagon_debut ?? null,
       };
     }
 
@@ -211,7 +249,7 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
       }
     }
 
-    return { normalizedName, cacheStatus: "unavailable", providerSlug: null, metrics: null };
+    return { normalizedName, cacheStatus: "unavailable", providerSlug: null, metrics: null, octagonDebut: null };
   }
 
   const fighter = searchResult.fighter;
@@ -225,10 +263,17 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
         cacheStatus: "stale_fallback",
         providerSlug: cached.provider_slug,
         metrics: rowToMapped(cached),
+        octagonDebut: cached.octagon_debut ?? null,
       };
     }
 
-    return { normalizedName, cacheStatus: "unavailable", providerSlug: fighter.slug, metrics: null };
+    return {
+      normalizedName,
+      cacheStatus: "unavailable",
+      providerSlug: fighter.slug,
+      metrics: null,
+      octagonDebut: fighter.octagonDebut,
+    };
   }
 
   const mapped = mapCitoStats(fighter.stats);
@@ -259,6 +304,7 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
     source_updated_at: fighter.stats.lastSyncedAt,
     last_synced_at: now,
     updated_at: now,
+    octagon_debut: fighter.octagonDebut,
   };
 
   const saved = await upsertMetrics(row);
@@ -266,7 +312,13 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
     console.error(`[fighterSync] Supabase save failure (metrics): "${fighterName}"`);
   }
 
-  return { normalizedName, cacheStatus: "miss_refreshed", providerSlug: fighter.slug, metrics: mapped };
+  return {
+    normalizedName,
+    cacheStatus: "miss_refreshed",
+    providerSlug: fighter.slug,
+    metrics: mapped,
+    octagonDebut: fighter.octagonDebut,
+  };
 }
 
 export type HistoryEntry = {
@@ -294,6 +346,38 @@ export type HistorySyncResult = {
   history: HistoryEntry[];
 };
 
+// Cito and Sherdog phrase the same outcome differently — Cito mixes
+// abbreviations ("U-DEC") with its own spelled-out form ("Decision -
+// Unanimous"), even across two entries for the same fighter, while
+// Sherdog spells it out with a different punctuation style ("Decision
+// (Unanimous)"). A fighter whose "Recent Fight History" mixes Cito and
+// Sherdog rows would otherwise show inconsistent phrasing fight-to-fight
+// for what is, to a reader, the identical outcome type.
+const METHOD_ABBREVIATIONS: Record<string, string> = {
+  "u-dec": "Decision (Unanimous)",
+  "s-dec": "Decision (Split)",
+  "m-dec": "Decision (Majority)",
+  "sub": "Submission",
+  "dq": "Disqualification",
+  "cnc": "No Contest",
+  "nc": "No Contest",
+};
+
+function normalizeMethod(method: string | null): string | null {
+  if (!method) return method;
+  const key = method.trim().toLowerCase();
+
+  if (METHOD_ABBREVIATIONS[key]) return METHOD_ABBREVIATIONS[key];
+  if (key.includes("unanimous")) return "Decision (Unanimous)";
+  if (key.includes("split")) return "Decision (Split)";
+  if (key.includes("majority")) return "Decision (Majority)";
+  if (key === "decision") return "Decision";
+
+  // KO/TKO, submission-with-technique, etc. — already consistent in
+  // shape between providers, so passed through as-is.
+  return method;
+}
+
 function rowToHistoryEntry(row: FighterHistoryRow): HistoryEntry {
   return {
     opponent: row.opponent_name,
@@ -302,10 +386,58 @@ function rowToHistoryEntry(row: FighterHistoryRow): HistoryEntry {
     event: row.event_name,
     date: row.event_date,
     location: row.location,
-    method: row.method,
+    method: normalizeMethod(row.method),
     round: row.round,
     time: row.fight_time,
   };
+}
+
+async function fetchSherdogHistoryFallback(
+  fighterName: string,
+  citoSlug: string,
+  now: string
+): Promise<FighterHistoryRow[]> {
+  const searchResult = await searchSherdogFighter(fighterName);
+
+  if (searchResult.status !== "matched") {
+    console.log(`[fighterSync] Sherdog fallback: ${searchResult.status} for "${fighterName}"`);
+    return [];
+  }
+
+  const historyResult = await fetchSherdogFightHistory(searchResult.profileUrl);
+
+  if (historyResult.status !== "ok") {
+    console.warn(`[fighterSync] Sherdog fallback error for "${fighterName}": ${historyResult.error}`);
+    return [];
+  }
+
+  if (historyResult.fights.length === 0) {
+    return [];
+  }
+
+  console.log(`[fighterSync] Sherdog fallback found ${historyResult.fights.length} fight(s): "${fighterName}"`);
+
+  return historyResult.fights
+    .filter((fight) => fight.opponent)
+    .map((fight) => ({
+      // Stored under Cito's slug (not Sherdog's own) so this fighter's
+      // history stays keyed the same way everywhere else in the app reads
+      // it — only the `source` tag records where the data actually came
+      // from.
+      fighter_slug: citoSlug,
+      fighter_name: fighterName,
+      opponent_slug: slugifyOpponentName(fight.opponent as string),
+      opponent_name: fight.opponent,
+      result: fight.result,
+      event_name: fight.event,
+      event_date: fight.eventDate,
+      location: null,
+      method: fight.method,
+      round: fight.round,
+      fight_time: fight.time,
+      source: "sherdog",
+      updated_at: now,
+    }));
 }
 
 export async function syncFighterHistory(
@@ -344,7 +476,7 @@ export async function syncFighterHistory(
 
   const now = new Date().toISOString();
 
-  const rows: FighterHistoryRow[] = fightsResult.fights.map((fight) => ({
+  let rows: FighterHistoryRow[] = fightsResult.fights.map((fight) => ({
     fighter_slug: providerSlug,
     fighter_name: fighterName,
     opponent_slug: fight.opponent?.slug ?? null,
@@ -359,6 +491,52 @@ export async function syncFighterHistory(
     source: "cito",
     updated_at: now,
   }));
+
+  // Cito's fight-history coverage is Octagon-only, so a fighter early in
+  // their UFC run can have only 0 or 1 RESOLVED fights here — the one entry
+  // Cito always returns is often just the upcoming/unresolved bout itself
+  // (result: null), not a real completed fight. Drop that before counting:
+  // rows.length alone would never reflect "not enough real fights", since
+  // that scheduled-bout entry means the array is never actually empty.
+  // Sherdog covers regional/pre-UFC promotions Cito never will, so it's
+  // used to TOP UP (not replace) real Cito rows up to a minimum of 3 —
+  // enough for "Recent Fight History" to read as more than a single line
+  // for a fighter early in their UFC tenure, without ever discarding a
+  // real Cito-sourced result.
+  const MIN_HISTORY_ROWS = 3;
+  const resolvedCitoRows = rows.filter((row) => !!row.result);
+
+  // Cito occasionally returns two source records for the exact same
+  // real-world fight, differing only in event-name punctuation, location
+  // text, or method formatting (see dedupeRedundantFights in
+  // fighterMetricsRepo.ts, which collapses these on read) — counting
+  // resolvedCitoRows.length directly would double-count one real fight as
+  // two, under-requesting how many Sherdog rows are actually needed.
+  const distinctResolvedFights = new Set(
+    resolvedCitoRows.map((row) => `${row.opponent_slug}|${row.round}|${row.fight_time}`)
+  ).size;
+
+  if (distinctResolvedFights < MIN_HISTORY_ROWS) {
+    console.log(
+      `[fighterSync] only ${distinctResolvedFights} distinct resolved Cito fight(s) — topping up with Sherdog: "${fighterName}"`
+    );
+    const sherdogRows = await fetchSherdogHistoryFallback(fighterName, providerSlug, now);
+
+    // Sherdog and Cito can both carry the same real-world fight — skip any
+    // Sherdog row whose opponent Cito's resolved rows already cover, so a
+    // fighter never sees the same bout listed twice.
+    const citoOpponents = new Set(
+      resolvedCitoRows.map((row) => (row.opponent_name || "").toLowerCase().trim())
+    );
+    const supplementalRows = sherdogRows.filter(
+      (row) => !citoOpponents.has((row.opponent_name || "").toLowerCase().trim())
+    );
+
+    const needed = MIN_HISTORY_ROWS - distinctResolvedFights;
+    rows = [...resolvedCitoRows, ...supplementalRows.slice(0, needed)];
+  } else {
+    rows = resolvedCitoRows;
+  }
 
   const saved = await upsertHistoryRows(rows);
   if (!saved) {
