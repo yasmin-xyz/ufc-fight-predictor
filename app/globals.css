@@ -911,6 +911,7 @@ body {
 .edge-divider { border: none; border-top: 0.5px solid rgba(98, 55, 176, 0.12); margin: 4px 0; }
 .edge-neg { font-size: 13px; font-weight: 600; color: rgba(220,80,80,0.65); }
 .edge-pos { font-size: 13px; font-weight: 600; color: #5DC98A; }
+.edge-neutral { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.4); }
 
 /* CONSENSUS */
 .model-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(255,255,255,0.025); border: 0.5px solid rgba(255,255,255,0.05); border-radius: 7px; margin-bottom: var(--space-2); transition: background 0.15s, border-color 0.15s; }
