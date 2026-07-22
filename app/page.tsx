@@ -271,6 +271,7 @@ export default function Home() {
   const [contentDim, setContentDim] = useState(false);
   const [fighterAStats, setFighterAStats] = useState<any>(null);
 const [fighterBStats, setFighterBStats] = useState<any>(null);
+  const [rankings, setRankings] = useState<Record<string, { champion: string | null; ranks: { rank: number; name: string }[] }>>({});
   const [ufcEvent, setUfcEvent] = useState<any>(null);
 const [mergedFights, setMergedFights] = useState<any[]>([]);
   const [eventVenue, setEventVenue] = useState<string>("");
@@ -623,6 +624,40 @@ selectFight(defaultFight);
     loadFighters();
   }, [selectedFight]);
 
+  // Divisional rankings don't depend on which fight is selected, so this
+  // fetches once — the (server-cached) payload covers every division and
+  // every fight the user might pick.
+  useEffect(() => {
+    async function loadRankings() {
+      try {
+        const res = await fetch("/api/rankings");
+        const data = res.ok ? await res.json() : null;
+        setRankings(data?.rankings || {});
+      } catch (err) {
+        console.error("Failed loading rankings", err);
+      }
+    }
+
+    loadRankings();
+  }, []);
+
+  // Matches a fighter's display name against ufc.com's rankings for
+  // their division by name (like the Cito/Sherdog lookups elsewhere in
+  // this file) rather than a shared id — ufc.com doesn't expose one.
+  function getFighterRank(weightClass: string | undefined, fighterName: string | undefined) {
+    if (!weightClass || !fighterName) return null;
+
+    const division = rankings[weightClass];
+    if (!division) return null;
+
+    if (division.champion && namesMatchExactly(division.champion, fighterName)) {
+      return { rank: 1, isChampion: true };
+    }
+
+    const entry = division.ranks.find((r) => namesMatchExactly(r.name, fighterName));
+    return entry ? { rank: entry.rank, isChampion: false } : null;
+  }
+
   const METRICS_POLL_INTERVAL_MS = 2000;
   const METRICS_POLL_MAX_MS = 30000;
 
@@ -901,6 +936,10 @@ const statRows = [
     aAdv: metricNumber(fighterAMetrics.subAvg) >= metricNumber(fighterBMetrics.subAvg),
   },
 ];
+
+  const fighterARank = getFighterRank(selectedFight?.weightClass, selectedFight?.fighterA);
+  const fighterBRank = getFighterRank(selectedFight?.weightClass, selectedFight?.fighterB);
+
   return (
     <main>
      <nav className="nav reveal-nav">
@@ -1115,6 +1154,11 @@ const statRows = [
   ) : (
     <FighterHeadshotPlaceholder />
   )}
+  {fighterARank && (
+    <div className={`fighter-rank ${fighterARank.isChampion ? "fighter-rank-champ" : ""}`}>
+      {fighterARank.isChampion ? "Champion" : `#${fighterARank.rank}`}
+    </div>
+  )}
   <div className="fighter-name">{selectedFight?.fighterA || "Loading..."}</div>
                 {showNicknameRow && (
                   <div className="fighter-nickname">
@@ -1136,11 +1180,16 @@ const statRows = [
                 </div>
                 <div className="fighter-b">
   {!fighterBStats ? (
-    <div className="fighter-headshot skeleton-shimmer" aria-hidden="true" />
+    <div className="fighter-headshot fighter-headshot-b skeleton-shimmer" aria-hidden="true" />
   ) : fighterBStats.headshot ? (
-    <img src={fighterBStats.headshot} alt={selectedFight?.fighterB} className="fighter-headshot" />
+    <img src={fighterBStats.headshot} alt={selectedFight?.fighterB} className="fighter-headshot fighter-headshot-b" />
   ) : (
     <FighterHeadshotPlaceholder className="fighter-headshot-b" />
+  )}
+  {fighterBRank && (
+    <div className={`fighter-rank ${fighterBRank.isChampion ? "fighter-rank-champ" : ""}`}>
+      {fighterBRank.isChampion ? "Champion" : `#${fighterBRank.rank}`}
+    </div>
   )}
   <div className="fighter-name">{selectedFight?.fighterB || "Loading..."}</div>
                 {showNicknameRow && (
