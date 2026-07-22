@@ -76,6 +76,12 @@ type MarketGapTier =
 // Tiered by how much of an underdog the consensus winner is per the
 // (normalized) market — not by the raw size of the confidence/market gap,
 // since a large gap on a market favorite isn't "contrarian" at all.
+// Below this, "AI more/less confident than the market" isn't a meaningful
+// signal — it reads as noise, not edge. Colors are reserved for gaps
+// large enough to actually mean something; a small gap renders neutral
+// instead of red/green so it doesn't look like a verdict on the pick.
+const MARKET_GAP_SIGNIFICANCE_THRESHOLD = 10;
+
 function marketGapTier(
   consensusWinnerMarketProbability: number | null,
   modelAgreement: string | undefined
@@ -1626,14 +1632,27 @@ const statRows = [
 
   <div className="value-analysis-row value-edge-row">
     <div>
-      <div className="value-section-title">AI–Market Gap</div>
+      <div className="value-section-title-row">
+        <div className="value-section-title">AI–Market Gap</div>
+        <InfoTooltip label="AI–Market Gap">
+          AI confidence minus market-implied probability. Positive means the AI is more bullish than the market; negative means it is more cautious.
+        </InfoTooltip>
+      </div>
       <div className={`value-edge-label ${isContrarianPick ? "value-edge-label-contrarian" : ""}`}>
         {marketGapLabel || "Pending AI"}
       </div>
     </div>
 
     {marketGap !== null ? (
-      <span className={marketGap > 0 ? "edge-pos" : "edge-neg"}>
+      <span
+        className={
+          Math.abs(marketGap) < MARKET_GAP_SIGNIFICANCE_THRESHOLD
+            ? "edge-neutral"
+            : marketGap > 0
+            ? "edge-pos"
+            : "edge-neg"
+        }
+      >
         {marketGap > 0 ? `+${marketGap}%` : `${marketGap}%`}
       </span>
     ) : (
