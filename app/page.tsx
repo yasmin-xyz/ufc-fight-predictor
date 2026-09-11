@@ -357,6 +357,17 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
   const metricsPollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fighterStatsRequestIdRef = useRef(0);
   const assetReadyIdRef = useRef(0);
+  // ESPN bio stats for the prediction request — started in parallel with
+  // the metrics/history poll (see the [selectedFight] effect below)
+  // instead of only being fetched once that poll settles, so the two
+  // independent network calls overlap rather than running back-to-back.
+  // Keyed by fight.id so loadPredictionData can tell whether this promise
+  // is still for the fight it was asked to predict, or a stale/mismatched
+  // one it should just re-fetch instead of trusting.
+  const predictionStatsPromiseRef = useRef<{
+    fightId: any;
+    promise: Promise<{ statsA: any; statsB: any }>;
+  } | null>(null);
 
   // Scroll-triggered reveal for the Fighter Metrics bars and the
   // Prediction Summary confidence rail — each plays once its own card
@@ -494,11 +505,44 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
     }
   }
 
-  // Single coordinated data-loading operation for a fight selection: fetch
-  // ESPN profiles for the exact fighters in `fight`, validate against the
-  // requested names, then hand everything to fetchPrediction as explicit
-  // arguments. metricsA/metricsB/historyA/historyB are NOT fetched here —
-  // callers must pass the SETTLED result of the fighter-metrics poll (see
+  // ESPN bio stats for both fighters in a fight, validated against the
+  // requested names before use. Split out so it can be kicked off early
+  // (in parallel with the metrics/history poll) as well as called here
+  // directly as a fallback when no such early fetch is available.
+  async function fetchStatsForPrediction(fight: any): Promise<{ statsA: any; statsB: any }> {
+    const [statsAResult, statsBResult] = await Promise.allSettled([
+      fight.fighterAId
+        ? fetch(`/api/fighter-stats?id=${fight.fighterAId}`).then((r) => (r.ok ? r.json() : null))
+        : Promise.resolve(null),
+      fight.fighterBId
+        ? fetch(`/api/fighter-stats?id=${fight.fighterBId}`).then((r) => (r.ok ? r.json() : null))
+        : Promise.resolve(null),
+    ]);
+
+    const rawStatsA = statsAResult.status === "fulfilled" ? statsAResult.value : null;
+    const rawStatsB = statsBResult.status === "fulfilled" ? statsBResult.value : null;
+
+    // ESPN bio data is supplementary — if it doesn't belong to the
+    // requested fighter, drop it rather than risk feeding it in under
+    // the wrong name.
+    const statsA = rawStatsA?.name && namesMatchExactly(rawStatsA.name, fight.fighterA) ? rawStatsA : null;
+    const statsB = rawStatsB?.name && namesMatchExactly(rawStatsB.name, fight.fighterB) ? rawStatsB : null;
+
+    if (rawStatsA && !statsA) {
+      console.warn(`ESPN stats name mismatch: expected "${fight.fighterA}", got "${rawStatsA?.name}"`);
+    }
+    if (rawStatsB && !statsB) {
+      console.warn(`ESPN stats name mismatch: expected "${fight.fighterB}", got "${rawStatsB?.name}"`);
+    }
+
+    return { statsA, statsB };
+  }
+
+  // Single coordinated data-loading operation for a fight selection:
+  // resolve ESPN profiles for the exact fighters in `fight`, then hand
+  // everything to fetchPrediction as explicit arguments.
+  // metricsA/metricsB/historyA/historyB are NOT fetched here — callers
+  // must pass the SETTLED result of the fighter-metrics poll (see
   // fetchFighterMetricsAndHistory below). Generating a prediction from a
   // mid-poll snapshot previously let the AI reason about a fighter's
   // finishing tendency using empty history simply because Cito hadn't
@@ -522,32 +566,17 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
     setPredictionError(false);
 
     try {
-      const [statsAResult, statsBResult] = await Promise.allSettled([
-        fight.fighterAId
-          ? fetch(`/api/fighter-stats?id=${fight.fighterAId}`).then((r) => (r.ok ? r.json() : null))
-          : Promise.resolve(null),
-        fight.fighterBId
-          ? fetch(`/api/fighter-stats?id=${fight.fighterBId}`).then((r) => (r.ok ? r.json() : null))
-          : Promise.resolve(null),
-      ]);
+      // Reuse the ESPN-stats fetch already kicked off in parallel with
+      // the metrics/history poll for this exact fight, if one's in
+      // flight — otherwise (e.g. a manual retry with nothing pending)
+      // fall back to fetching fresh, same as before.
+      const pending = predictionStatsPromiseRef.current;
+      const { statsA, statsB } =
+        pending && pending.fightId === fight.id
+          ? await pending.promise
+          : await fetchStatsForPrediction(fight);
 
       if (requestId !== requestIdRef.current) return;
-
-      const rawStatsA = statsAResult.status === "fulfilled" ? statsAResult.value : null;
-      const rawStatsB = statsBResult.status === "fulfilled" ? statsBResult.value : null;
-
-      // ESPN bio data is supplementary — if it doesn't belong to the
-      // requested fighter, drop it rather than risk feeding it in under
-      // the wrong name.
-      const statsA = rawStatsA?.name && namesMatchExactly(rawStatsA.name, fight.fighterA) ? rawStatsA : null;
-      const statsB = rawStatsB?.name && namesMatchExactly(rawStatsB.name, fight.fighterB) ? rawStatsB : null;
-
-      if (rawStatsA && !statsA) {
-        console.warn(`ESPN stats name mismatch: expected "${fight.fighterA}", got "${rawStatsA?.name}"`);
-      }
-      if (rawStatsB && !statsB) {
-        console.warn(`ESPN stats name mismatch: expected "${fight.fighterB}", got "${rawStatsB?.name}"`);
-      }
 
       await fetchPrediction(fight, statsA, statsB, metricsA, metricsB, historyA, historyB, requestId);
     } catch (error) {
@@ -900,8 +929,33 @@ selectFight(defaultFight);
   useEffect(() => {
     if (!selectedFight?.fighterA || !selectedFight?.fighterB) return;
 
+    // Clear the previous fight's prediction immediately rather than
+    // leaving it on screen until loadPredictionData eventually runs —
+    // that only happens once the metrics/history poll below settles,
+    // which can take anywhere from under a second (already-cached
+    // fighters) to the full 30s poll window (a fresh sync). Without this,
+    // switching fights showed the AI Matchup Breakdown for whichever
+    // fight was open BEFORE this one for that entire gap — the newer
+    // fight's name/tale-of-the-tape updated immediately, but its
+    // analysis didn't, since nothing told the UI the old prediction was
+    // now stale until a new one was ready to replace it.
+    setPrediction(null);
+    setPredictionError(false);
+    setLoadingPrediction(true);
+    requestIdRef.current++;
+
     setHistoryToggle("A");
     startMetricsHistoryFetch(selectedFight);
+
+    // Kick off the ESPN-stats fetch the eventual prediction will need in
+    // parallel with the metrics/history poll above, instead of only
+    // starting it once that poll settles — the two are independent, so
+    // there's no reason to run them back-to-back and add its round trip
+    // on top of an already-slow chain.
+    predictionStatsPromiseRef.current = {
+      fightId: selectedFight.id,
+      promise: fetchStatsForPrediction(selectedFight),
+    };
 
     return () => {
       if (metricsPollTimerRef.current) {
