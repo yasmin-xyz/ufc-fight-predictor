@@ -345,10 +345,12 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
   const [fighterAOctagonDebut, setFighterAOctagonDebut] = useState<string | null>(null);
   const [fighterBOctagonDebut, setFighterBOctagonDebut] = useState<string | null>(null);
 
-  // Cito's style label — only a fallback for the Tale of the Tape's Style
-  // row when ESPN has none on file for that fighter.
+  // Cito's style and stance labels — only fallbacks for the Tale of the
+  // Tape's Style/Stance rows when ESPN has none on file for that fighter.
   const [fighterAFightingStyle, setFighterAFightingStyle] = useState<string | null>(null);
   const [fighterBFightingStyle, setFighterBFightingStyle] = useState<string | null>(null);
+  const [fighterACitoStance, setFighterACitoStance] = useState<string | null>(null);
+  const [fighterBCitoStance, setFighterBCitoStance] = useState<string | null>(null);
 
   const [fighterAHistory, setFighterAHistory] = useState<any[]>([]);
   const [fighterBHistory, setFighterBHistory] = useState<any[]>([]);
@@ -852,6 +854,8 @@ selectFight(defaultFight);
       setFighterBOctagonDebut(data.octagonDebut?.[fight.fighterB] || null);
       setFighterAFightingStyle(data.fightingStyle?.[fight.fighterA] || null);
       setFighterBFightingStyle(data.fightingStyle?.[fight.fighterB] || null);
+      setFighterACitoStance(data.stance?.[fight.fighterA] || null);
+      setFighterBCitoStance(data.stance?.[fight.fighterB] || null);
 
       setFighterAHistory(data.history?.[fight.fighterA] || []);
       setFighterBHistory(data.history?.[fight.fighterB] || []);
@@ -895,6 +899,8 @@ selectFight(defaultFight);
         setFighterBOctagonDebut(null);
         setFighterAFightingStyle(null);
         setFighterBFightingStyle(null);
+        setFighterACitoStance(null);
+        setFighterBCitoStance(null);
         setMetricsStatus("error");
 
         setFighterAHistory([]);
@@ -953,11 +959,13 @@ selectFight(defaultFight);
     setLoadingPrediction(true);
     requestIdRef.current++;
 
-    // Same reasoning for Cito's style label: it arrives with the metrics
-    // poll, so without this the previous fight's would sit under the new
-    // fighters until that poll returned.
+    // Same reasoning for Cito's style/stance labels: they arrive with the
+    // metrics poll, so without this the previous fight's would sit under the
+    // new fighters until that poll returned.
     setFighterAFightingStyle(null);
     setFighterBFightingStyle(null);
+    setFighterACitoStance(null);
+    setFighterBCitoStance(null);
 
     setHistoryToggle("A");
     startMetricsHistoryFetch(selectedFight);
@@ -1515,11 +1523,15 @@ const statRows = [
                     { label: "Age", a: fighterAStats?.age, b: fighterBStats?.age },
                     { label: "Height", a: fighterAStats?.height, b: fighterBStats?.height },
                     { label: "Reach", a: fighterAStats?.reach, b: fighterBStats?.reach },
-                    { label: "Stance", a: fighterAStats?.stance, b: fighterBStats?.stance },
-                    { label: "Style", a: fighterAStats?.style || fighterAFightingStyle, b: fighterBStats?.style || fighterBFightingStyle },
-                  ].map((row) => {
-                    const a = statsLoading ? null : formatBioValue(row.a);
-                    const b = statsLoading ? null : formatBioValue(row.b);
+                    { label: "Stance", a: fighterAStats?.stance, b: fighterBStats?.stance, fallbackA: fighterACitoStance, fallbackB: fighterBCitoStance },
+                    { label: "Style", a: fighterAStats?.style, b: fighterBStats?.style, fallbackA: fighterAFightingStyle, fallbackB: fighterBFightingStyle },
+                  ].map((row: { label: string; a: any; b: any; fallbackA?: string | null; fallbackB?: string | null }) => {
+                    // Clean ESPN's value first, THEN fall back to Cito's —
+                    // ESPN stores a missing stance as the literal "--",
+                    // which is truthy, so a plain `espn || cito` would never
+                    // reach the fallback for exactly the fighters that need it.
+                    const a = statsLoading ? null : formatBioValue(row.a) ?? formatBioValue(row.fallbackA);
+                    const b = statsLoading ? null : formatBioValue(row.b) ?? formatBioValue(row.fallbackB);
                     const placeholder = statsLoading ? "Loading…" : "Unknown";
                     return (
                       <div key={row.label} className="tot-compare-row">
