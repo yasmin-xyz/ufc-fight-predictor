@@ -30,7 +30,7 @@ export default function TermsPage() {
           <h2 className="meth-heading">What this service is</h2>
 
           <p className="meth-body">
-            Pick&apos;em Labs is operated by PickMeLabs, a sole proprietorship
+            Pick&apos;em Labs is operated by PML, a sole proprietorship
             based in Ontario, Canada. It combines publicly available fighter
             statistics, live sportsbook odds, and independent analysis from
             multiple AI models to help you better understand upcoming UFC
@@ -103,7 +103,7 @@ export default function TermsPage() {
           <p className="meth-body">
             Unless otherwise stated, the content, branding, design, original
             analysis, and software that make up Pick&apos;em Labs belong to
-            PickMeLabs or are used with permission. You may use the service for
+            PML or are used with permission. You may use the service for
             personal, non-commercial purposes, but you may not copy,
             redistribute, or republish substantial portions of the site's
             content as your own without permission.
@@ -137,7 +137,7 @@ export default function TermsPage() {
   </p>
 
   <p className="meth-body">
-    To the fullest extent permitted by law, PickMeLabs isn&apos;t liable for
+    To the fullest extent permitted by law, PML isn&apos;t liable for
     any losses or damages resulting from your use of, or reliance on,
     Pick&apos;em Labs or the information provided by the service.
   </p>
