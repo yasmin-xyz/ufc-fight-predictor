@@ -1561,7 +1561,12 @@ const statRows = [
                     // reach the fallback for exactly the fighters that need it.
                     const a = statsLoading ? null : formatBioValue(row.a) ?? formatBioValue(row.fallbackA);
                     const b = statsLoading ? null : formatBioValue(row.b) ?? formatBioValue(row.fallbackB);
-                    const placeholder = statsLoading ? "Loading…" : "Unknown";
+                    // A row with a Cito fallback isn't really "Unknown" until
+                    // Cito has answered — that arrives with the metrics poll,
+                    // a beat after ESPN's bio, so say "Loading…" for that gap
+                    // instead of flashing Unknown and then swapping in a value.
+                    const awaitingCito = row.fallbackA !== undefined && metricsStatus === "loading";
+                    const placeholder = statsLoading || awaitingCito ? "Loading…" : "Unknown";
                     return (
                       <div key={row.label} className="tot-compare-row">
                         <span className={`tot-compare-val ${a ? "" : "tot-compare-val-unknown"}`}>
