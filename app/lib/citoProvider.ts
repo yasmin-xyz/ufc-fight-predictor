@@ -48,6 +48,9 @@ export type CitoSearchFighter = {
   // Cito's own label for the fighter's style ("Striker", "Wrestler", ...). A
   // fallback for the Tale of the Tape's Style row when ESPN has none on file.
   fightingStyle: string | null;
+  // Cito's stance ("Orthodox", "Southpaw", "Switch"). A fallback for the Stance
+  // row when ESPN has none, or stores a missing one as "--".
+  stance: string | null;
 };
 
 export type CitoFightHistoryEntry = {

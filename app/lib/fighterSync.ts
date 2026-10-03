@@ -114,6 +114,7 @@ export type MetricsPeekResult = {
   metrics: MappedMetrics | null;
   octagonDebut: string | null;
   fightingStyle: string | null;
+  stance: string | null;
 };
 
 // Supabase-only read, no Cito calls. Used by the read-first fighter-metrics
@@ -123,7 +124,7 @@ export async function peekFighterMetrics(fighterName: string): Promise<MetricsPe
   const cached = await getCachedMetrics(normalizedName);
 
   if (!cached) {
-    return { normalizedName, providerSlug: null, status: "missing", needsRefresh: true, metrics: null, octagonDebut: null, fightingStyle: null };
+    return { normalizedName, providerSlug: null, status: "missing", needsRefresh: true, metrics: null, octagonDebut: null, fightingStyle: null, stance: null };
   }
 
   // A cito-error row is treated the same as a confirmed not-found here —
@@ -142,6 +143,7 @@ export async function peekFighterMetrics(fighterName: string): Promise<MetricsPe
       metrics: null,
       octagonDebut: null,
       fightingStyle: null,
+      stance: null,
     };
   }
 
@@ -153,6 +155,7 @@ export async function peekFighterMetrics(fighterName: string): Promise<MetricsPe
     metrics: rowToMapped(cached),
     octagonDebut: cached.octagon_debut ?? null,
     fightingStyle: cached.fighting_style ?? null,
+    stance: cached.stance ?? null,
   };
 }
 
@@ -195,6 +198,7 @@ export type MetricsSyncResult = {
   metrics: MappedMetrics | null;
   octagonDebut: string | null;
   fightingStyle: string | null;
+  stance: string | null;
 };
 
 export async function syncFighterMetrics(fighterName: string): Promise<MetricsSyncResult> {
@@ -210,6 +214,7 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
       metrics: rowToMapped(cached),
       octagonDebut: cached.octagon_debut ?? null,
       fightingStyle: cached.fighting_style ?? null,
+      stance: cached.stance ?? null,
     };
   }
 
@@ -236,6 +241,7 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
         metrics: rowToMapped(cached),
         octagonDebut: cached.octagon_debut ?? null,
       fightingStyle: cached.fighting_style ?? null,
+      stance: cached.stance ?? null,
       };
     }
 
@@ -283,7 +289,7 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
       }
     }
 
-    return { normalizedName, cacheStatus: "unavailable", providerSlug: null, metrics: null, octagonDebut: null, fightingStyle: null };
+    return { normalizedName, cacheStatus: "unavailable", providerSlug: null, metrics: null, octagonDebut: null, fightingStyle: null, stance: null };
   }
 
   const fighter = searchResult.fighter;
@@ -299,6 +305,7 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
         metrics: rowToMapped(cached),
         octagonDebut: cached.octagon_debut ?? null,
       fightingStyle: cached.fighting_style ?? null,
+      stance: cached.stance ?? null,
       };
     }
 
@@ -309,6 +316,7 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
       metrics: null,
       octagonDebut: fighter.octagonDebut,
       fightingStyle: fighter.fightingStyle ?? null,
+      stance: fighter.stance ?? null,
     };
   }
 
@@ -342,6 +350,7 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
     updated_at: now,
     octagon_debut: fighter.octagonDebut,
     fighting_style: fighter.fightingStyle ?? null,
+    stance: fighter.stance ?? null,
   };
 
   const saved = await upsertMetrics(row);
@@ -356,6 +365,7 @@ export async function syncFighterMetrics(fighterName: string): Promise<MetricsSy
     metrics: mapped,
     octagonDebut: fighter.octagonDebut,
     fightingStyle: fighter.fightingStyle ?? null,
+    stance: fighter.stance ?? null,
   };
 }
 
