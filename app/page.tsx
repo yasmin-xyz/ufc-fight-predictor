@@ -174,6 +174,28 @@ function formatBioValue(value: string | number | null | undefined): string | nul
   return str;
 }
 
+// ESPN reports a start time per fight, and every fight in a card section
+// (early prelims / prelims / main card) shares that section's start time, so
+// the earliest fight date in a section IS the section's start. Formatted in
+// Eastern time with an explicit zone (not the viewer's local one) so it's the
+// same for everyone, and via Intl so daylight saving is handled for us — a
+// hardcoded "EDT" would be wrong half the year. Null when the section is
+// empty or ESPN gave no usable date, so the tab just omits the time.
+function sectionStartTimeET(fights: { date?: string }[]): string | null {
+  const times = fights
+    .map((f) => (f.date ? new Date(f.date).getTime() : NaN))
+    .filter((t) => Number.isFinite(t));
+  if (times.length === 0) return null;
+
+  const time = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(Math.min(...times)));
+
+  return `${time} ET`;
+}
+
 // Cito's octagonDebut is the date of a fighter's first UFC bout. If it
 // falls within a day or two of the card being viewed, that IS this fight —
 // a much more reliable "UFC debut" signal than an empty history list,
@@ -1031,6 +1053,10 @@ selectFight(defaultFight);
   const prelimFights = mergedFights.slice(-9, -5).reverse();
   
   const earlyPrelimFights = mergedFights.slice(0, -9).reverse();
+
+  const mainCardStart = sectionStartTimeET(mainCardFights);
+  const prelimsStart = sectionStartTimeET(prelimFights);
+  const earlyPrelimsStart = sectionStartTimeET(earlyPrelimFights);
   
   const visibleFights =
     activeTab === "main"
@@ -1377,6 +1403,7 @@ const statRows = [
     onClick={() => handleTabChange("main")}
   >
     MAIN CARD
+    <span className="tab-time">{mainCardStart}</span>
   </button>
 
   <button
@@ -1385,6 +1412,7 @@ const statRows = [
     onClick={() => handleTabChange("prelims")}
   >
     PRELIMS
+    <span className="tab-time">{prelimsStart}</span>
   </button>
 
   <button
@@ -1393,6 +1421,7 @@ const statRows = [
     onClick={() => handleTabChange("early")}
   >
     EARLY PRELIMS
+    <span className="tab-time">{earlyPrelimsStart}</span>
   </button>
 </div>
 <div className="fight-selector reveal-fight-selector">
