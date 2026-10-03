@@ -1184,6 +1184,13 @@ body {
   transition: color 0.15s, border-color 0.15s;
 }
 .tab.active { color: #E8E8EC; border-bottom-color: var(--accent-primary); }
+/* Start time under each tab label — a second, quieter line inside the same
+   button so the whole thing stays one click target and one underline. The
+   span always renders (min-height) so the tabs don't grow when the times
+   arrive after the fight data loads. */
+.tab { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.tab-time { font-size: 11px; line-height: 14px; min-height: 14px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.3); }
+.tab.active .tab-time { color: rgba(232, 232, 236, 0.55); }
 .tab:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; border-radius: 2px; }
 
 /* LAYOUT */
