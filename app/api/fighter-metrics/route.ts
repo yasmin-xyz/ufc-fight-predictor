@@ -37,6 +37,7 @@ type FighterPayload = {
   historyStatus: HistoryStatus;
   needsBackgroundSync: boolean;
   octagonDebut: string | null;
+  fightingStyle: string | null;
 };
 
 // Supabase-only — this never calls Cito. A cache miss returns immediately
@@ -112,6 +113,7 @@ async function buildFighterPayload(name: string): Promise<FighterPayload> {
     historyStatus,
     needsBackgroundSync,
     octagonDebut: metricsPeek.octagonDebut,
+    fightingStyle: metricsPeek.fightingStyle,
   };
 }
 
@@ -166,6 +168,7 @@ export async function POST(request: Request) {
     const history: Record<string, HistoryEntry[]> = {};
     const historyStatus: Record<string, HistoryStatus> = {};
     const octagonDebut: Record<string, string | null> = {};
+    const fightingStyle: Record<string, string | null> = {};
     const namesToSync: string[] = [];
 
     for (const payload of payloads) {
@@ -174,6 +177,7 @@ export async function POST(request: Request) {
       history[payload.name] = payload.history;
       historyStatus[payload.name] = payload.historyStatus;
       octagonDebut[payload.name] = payload.octagonDebut;
+      fightingStyle[payload.name] = payload.fightingStyle;
 
       if (payload.needsBackgroundSync) namesToSync.push(payload.name);
     }
@@ -197,7 +201,7 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({ metrics, metricsStatus, history, historyStatus, octagonDebut });
+    return NextResponse.json({ metrics, metricsStatus, history, historyStatus, octagonDebut, fightingStyle });
   } catch (error) {
     console.error(
       "[fighter-metrics] request error:",
