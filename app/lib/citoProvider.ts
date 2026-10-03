@@ -45,6 +45,9 @@ export type CitoSearchFighter = {
   // more reliable signal than "we have no history rows for them", since
   // Cito's own fight-history coverage can be incomplete for a real veteran.
   octagonDebut: string | null;
+  // Cito's own label for the fighter's style ("Striker", "Wrestler", ...). A
+  // fallback for the Tale of the Tape's Style row when ESPN has none on file.
+  fightingStyle: string | null;
 };
 
 export type CitoFightHistoryEntry = {

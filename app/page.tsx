@@ -367,6 +367,11 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
   const [fighterAOctagonDebut, setFighterAOctagonDebut] = useState<string | null>(null);
   const [fighterBOctagonDebut, setFighterBOctagonDebut] = useState<string | null>(null);
 
+  // Cito's style label — only a fallback for the Tale of the Tape's Style
+  // row when ESPN has none on file for that fighter.
+  const [fighterAFightingStyle, setFighterAFightingStyle] = useState<string | null>(null);
+  const [fighterBFightingStyle, setFighterBFightingStyle] = useState<string | null>(null);
+
   const [fighterAHistory, setFighterAHistory] = useState<any[]>([]);
   const [fighterBHistory, setFighterBHistory] = useState<any[]>([]);
   const [historyStatus, setHistoryStatus] = useState<"idle" | "loading" | "polling" | "ready" | "timeout" | "error">("idle");
@@ -867,6 +872,8 @@ selectFight(defaultFight);
       setFighterBMetricsState(bMetricsState);
       setFighterAOctagonDebut(data.octagonDebut?.[fight.fighterA] || null);
       setFighterBOctagonDebut(data.octagonDebut?.[fight.fighterB] || null);
+      setFighterAFightingStyle(data.fightingStyle?.[fight.fighterA] || null);
+      setFighterBFightingStyle(data.fightingStyle?.[fight.fighterB] || null);
 
       setFighterAHistory(data.history?.[fight.fighterA] || []);
       setFighterBHistory(data.history?.[fight.fighterB] || []);
@@ -908,6 +915,8 @@ selectFight(defaultFight);
         setFighterBMetricsState("");
         setFighterAOctagonDebut(null);
         setFighterBOctagonDebut(null);
+        setFighterAFightingStyle(null);
+        setFighterBFightingStyle(null);
         setMetricsStatus("error");
 
         setFighterAHistory([]);
@@ -965,6 +974,12 @@ selectFight(defaultFight);
     setPredictionError(false);
     setLoadingPrediction(true);
     requestIdRef.current++;
+
+    // Same reasoning for Cito's style label: it arrives with the metrics
+    // poll, so without this the previous fight's would sit under the new
+    // fighters until that poll returned.
+    setFighterAFightingStyle(null);
+    setFighterBFightingStyle(null);
 
     setHistoryToggle("A");
     startMetricsHistoryFetch(selectedFight);
@@ -1530,7 +1545,7 @@ const statRows = [
                     { label: "Height", a: fighterAStats?.height, b: fighterBStats?.height },
                     { label: "Reach", a: fighterAStats?.reach, b: fighterBStats?.reach },
                     { label: "Stance", a: fighterAStats?.stance, b: fighterBStats?.stance },
-                    { label: "Style", a: fighterAStats?.style, b: fighterBStats?.style },
+                    { label: "Style", a: fighterAStats?.style || fighterAFightingStyle, b: fighterBStats?.style || fighterBFightingStyle },
                   ].map((row) => {
                     const a = statsLoading ? null : formatBioValue(row.a);
                     const b = statsLoading ? null : formatBioValue(row.b);

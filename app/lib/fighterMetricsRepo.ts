@@ -58,6 +58,7 @@ export type FighterMetricsRow = {
   last_synced_at: string | null;
   updated_at: string;
   octagon_debut?: string | null;
+  fighting_style?: string | null;
 };
 
 export async function getCachedMetrics(normalizedName: string) {
