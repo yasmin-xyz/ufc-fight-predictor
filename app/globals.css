@@ -1188,8 +1188,8 @@ body {
    button so the whole thing stays one click target and one underline. The
    span always renders (min-height) so the tabs don't grow when the times
    arrive after the fight data loads. */
-.tab { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; }
-.tab-time { font-size: 11px; line-height: 14px; min-height: 14px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.3); }
+.tab { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.tab-time { font-size: 10px; line-height: 12px; min-height: 12px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.3); }
 .tab.active .tab-time { color: rgba(232, 232, 236, 0.55); }
 .tab:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; border-radius: 2px; }
 
@@ -1934,6 +1934,14 @@ body {
     padding: 16px 0;
     margin-right: 28px;
     font-size: 14px;
+  }
+
+  /* The label is bigger on mobile, so keep the time clearly subordinate to
+     it rather than inheriting the desktop size. */
+  .tab-time {
+    font-size: 10px;
+    line-height: 12px;
+    min-height: 12px;
   }
 
   /* Main page layout */
