@@ -196,6 +196,75 @@ function sectionStartTimeET(fights: { date?: string }[]): string | null {
   return `${time} ET`;
 }
 
+// Fights within this long of each other are the same broadcast block. Real
+// section gaps are hours (prelims run ~2-3h before the main card), so an hour
+// cleanly separates sections without splitting one section whose fights ESPN
+// happened to stamp a few minutes apart.
+const SECTION_GAP_MS = 60 * 60 * 1000;
+
+type CardSections = {
+  main: any[];
+  prelims: any[];
+  early: any[];
+  // False when ESPN gave no usable section timing, so the split is only a
+  // positional guess and a start time under the tab would be meaningless.
+  hasRealTimes: boolean;
+};
+
+// Splits a card into main / prelims / early prelims. `fights` is in ESPN's
+// order (earliest first, main event last); each returned section is reversed
+// so the main event / headline fight leads, as the tabs always showed.
+//
+// Grouped by actual start time rather than by position: the old fixed split
+// (last 5 = main, the 4 before = prelims, the rest = early) invented an
+// "Early Prelims" tab on cards that only have two start times, relabeling
+// real prelim fights and showing the same time on two tabs. The latest block
+// is the main card, the one before it the prelims, anything earlier the early
+// prelims — so a two-block card simply has no early prelims.
+//
+// If ESPN gave only one start time for the whole card (typical for a card
+// announced well in advance, where every fight carries the placeholder event
+// time) or any date is unusable, there's nothing to group by, so fall back to
+// the positional split and report hasRealTimes: false.
+function splitCardSections(fights: any[]): CardSections {
+  const times = fights.map((f) => (f?.date ? new Date(f.date).getTime() : NaN));
+
+  if (fights.length > 0 && times.every((t) => Number.isFinite(t))) {
+    const sorted = [...new Set(times)].sort((a, b) => a - b);
+    // Block boundaries: a new block starts wherever the gap to the previous
+    // distinct time exceeds SECTION_GAP_MS.
+    const blockStarts = [sorted[0]];
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i] - sorted[i - 1] > SECTION_GAP_MS) blockStarts.push(sorted[i]);
+    }
+
+    if (blockStarts.length >= 2) {
+      const blockOf = (t: number) => {
+        let idx = 0;
+        for (let i = 0; i < blockStarts.length; i++) if (t >= blockStarts[i]) idx = i;
+        return idx;
+      };
+      const last = blockStarts.length - 1;
+      const pick = (match: (block: number) => boolean) =>
+        fights.filter((_, i) => match(blockOf(times[i]))).reverse();
+
+      return {
+        main: pick((b) => b === last),
+        prelims: pick((b) => b === last - 1),
+        early: pick((b) => b < last - 1),
+        hasRealTimes: true,
+      };
+    }
+  }
+
+  return {
+    main: fights.slice(-5).reverse(),
+    prelims: fights.slice(-9, -5).reverse(),
+    early: fights.slice(0, -9).reverse(),
+    hasRealTimes: false,
+  };
+}
+
 // Cito's octagonDebut is the date of a fighter's first UFC bout. If it
 // falls within a day or two of the card being viewed, that IS this fight —
 // a much more reliable "UFC debut" signal than an empty history list,
@@ -669,8 +738,7 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
           setEventLocation(`${city}${state ? `, ${state}` : ""}`);
         }
 
-        const mainCardFights = merged.slice(-5).reverse();
-const defaultFight = mainCardFights[0] || merged[0];
+        const defaultFight = splitCardSections(merged).main[0] || merged[0];
 
 selectFight(defaultFight);
       } catch (error) {
@@ -1048,15 +1116,23 @@ selectFight(defaultFight);
   );
 
   const mainCardOdds = mergedFights;
-  const mainCardFights = mergedFights.slice(-5).reverse();
+  const sections = splitCardSections(mergedFights);
+  const mainCardFights = sections.main;
+  const prelimFights = sections.prelims;
+  const earlyPrelimFights = sections.early;
 
-  const prelimFights = mergedFights.slice(-9, -5).reverse();
-  
-  const earlyPrelimFights = mergedFights.slice(0, -9).reverse();
+  // Times only mean something when they came from distinct start times; with
+  // a positional-guess split every tab would show the same one.
+  const mainCardStart = sections.hasRealTimes ? sectionStartTimeET(mainCardFights) : null;
+  const prelimsStart = sections.hasRealTimes ? sectionStartTimeET(prelimFights) : null;
+  const earlyPrelimsStart = sections.hasRealTimes ? sectionStartTimeET(earlyPrelimFights) : null;
 
-  const mainCardStart = sectionStartTimeET(mainCardFights);
-  const prelimsStart = sectionStartTimeET(prelimFights);
-  const earlyPrelimsStart = sectionStartTimeET(earlyPrelimFights);
+  // Hide a tab that has no fights (e.g. a card with no early prelims) rather
+  // than show an empty one. Before the card has loaded there's nothing to
+  // judge by, so keep all three to avoid the tab bar popping in.
+  const cardLoaded = mergedFights.length > 0;
+  const showPrelimsTab = !cardLoaded || prelimFights.length > 0;
+  const showEarlyTab = !cardLoaded || earlyPrelimFights.length > 0;
   
   const visibleFights =
     activeTab === "main"
@@ -1406,23 +1482,27 @@ const statRows = [
     <span className="tab-time">{mainCardStart}</span>
   </button>
 
-  <button
-    type="button"
-    className={`tab ${activeTab === "prelims" ? "active" : ""}`}
-    onClick={() => handleTabChange("prelims")}
-  >
-    PRELIMS
-    <span className="tab-time">{prelimsStart}</span>
-  </button>
+  {showPrelimsTab && (
+    <button
+      type="button"
+      className={`tab ${activeTab === "prelims" ? "active" : ""}`}
+      onClick={() => handleTabChange("prelims")}
+    >
+      PRELIMS
+      <span className="tab-time">{prelimsStart}</span>
+    </button>
+  )}
 
-  <button
-    type="button"
-    className={`tab ${activeTab === "early" ? "active" : ""}`}
-    onClick={() => handleTabChange("early")}
-  >
-    EARLY PRELIMS
-    <span className="tab-time">{earlyPrelimsStart}</span>
-  </button>
+  {showEarlyTab && (
+    <button
+      type="button"
+      className={`tab ${activeTab === "early" ? "active" : ""}`}
+      onClick={() => handleTabChange("early")}
+    >
+      EARLY PRELIMS
+      <span className="tab-time">{earlyPrelimsStart}</span>
+    </button>
+  )}
 </div>
 <div className="fight-selector reveal-fight-selector">
   <div className="fight-selector-inner">
