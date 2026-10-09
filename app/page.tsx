@@ -1454,7 +1454,7 @@ const statRows = [
               </div>
               <span className="weight-pill">{selectedFight?.weightClass || "MMA"}</span>
             </div>
-            <div className="card-body card-body-flush">
+            <div className="card-body">
               <div className="tot">
               <div className="fighter-a">
   {!fighterAStats ? (

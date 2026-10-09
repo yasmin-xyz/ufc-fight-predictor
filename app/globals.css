@@ -1,6 +1,14 @@
 
 :root {
   --background: #0F0F11;
+
+  /* Left/right inset for the page's content sections. 40px on narrower
+     windows; once the window is wider than the 1360px content container
+     (.layout / .footer-inner) it grows so the heading, tabs, and fight
+     selector line up with the cards below instead of hugging the window
+     edge while the cards sit centered. Used as padding, so the percentage
+     is of the section's own width. */
+  --page-gutter: max(40px, calc(50% - 640px));
   --surface: #16161A;
 
   /* Unified indigo palette — matches the new logo assets exactly
@@ -942,7 +950,7 @@ body {
    opacity fade with no movement, so there's nothing to soften. */
 
 /* HERO */
-.hero { padding: 26px 40px 4px; }
+.hero { padding: 26px var(--page-gutter) 4px; }
 
 .hero-kicker {
   display: block;
@@ -1170,7 +1178,7 @@ body {
 }
 
 /* TABS */
-.tabs { display: flex; border-bottom: 0.5px solid rgba(255,255,255,0.07); padding: 0 40px; margin-top: 16px; }
+.tabs { display: flex; border-bottom: 0.5px solid rgba(255,255,255,0.07); padding: 0 var(--page-gutter); margin-top: 16px; }
 .tab {
   padding: 10px 0;
   margin-right: 32px;
@@ -1224,7 +1232,6 @@ body {
 .card-header { padding: 13px 18px; border-bottom: 0.5px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; }
 .card-meta { font-size: 10px; color: rgba(255,255,255,0.32); }
 .card-body { padding: 18px; }
-.card-body-flush { padding-left: 0; }
 
 /* FIGHT LIST */
 .fight-item:last-child { border-bottom: none; }
@@ -1238,13 +1245,16 @@ body {
 .fight-pick-name { font-size: 11px; color: var(--accent-muted); }
 .fight-pick-pct { font-size: 11px; color: rgba(255,255,255,0.22); }
 
-/* TALE OF TAPE — content is inherently compact (small headshots, short
-   stat values), so it's capped and centered instead of stretching to fill
-   the full card width on wide desktop viewports. */
-.tot { display: grid; grid-template-columns: 1fr 90px 1fr; align-items: start; max-width: 480px; margin: 0 auto; }
+/* TALE OF TAPE — fills the card up to a cap, then centers. The cap used to
+   be 480px, which left each fighter column only ~195px: a long name like
+   "Christian Leroy Duncan" wrapped onto three lines, and on a wide window
+   the content floated as a narrow strip with empty margins either side of
+   it inside the card. 720px gives each column ~315px (long names fit on one
+   line) while still keeping the two sides close enough to compare. */
+.tot { display: grid; grid-template-columns: 1fr 90px 1fr; align-items: start; max-width: 720px; margin: 0 auto; }
 .fighter-a { text-align: left; }
 .fighter-b { text-align: right; }
-.fighter-name { font-size: 20px; font-weight: 700; color: #E8E8EC; letter-spacing: -0.025em; }
+.fighter-name { font-size: 20px; font-weight: 700; color: #E8E8EC; letter-spacing: -0.025em; text-wrap: balance; }
 .fighter-nickname { font-size: 12px; font-style: italic; color: rgba(255,255,255,0.4); margin-top: 2px; }
 /* flex-end (not center) — the flag (fixed 16px) and record text (its own
    line-box height, taller than 16px) don't share a height, so centering
@@ -1286,7 +1296,7 @@ body {
 /* Tale of the Tape — side-by-side comparison rows, same pattern as
    Statistical Edge's stat-row so the two most-compared sections feel
    consistent. */
-.tot-compare { display: flex; flex-direction: column; gap: 10px; margin: var(--space-5) auto 0; padding-top: var(--space-4); border-top: 0.5px solid rgba(255,255,255,0.06); max-width: 480px; }
+.tot-compare { display: flex; flex-direction: column; gap: 10px; margin: var(--space-5) auto 0; padding-top: var(--space-4); border-top: 0.5px solid rgba(255,255,255,0.06); max-width: 720px; }
 .tot-compare-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
 .tot-compare-val { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.75); font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
 .tot-compare-val-unknown { font-style: italic; font-weight: 400; color: rgba(255,255,255,0.35); }
@@ -2576,7 +2586,7 @@ body {
 /* Fight selector — desktop and mobile */
 
 .fight-selector {
-  padding: 16px 40px 0;
+  padding: 16px var(--page-gutter) 0;
   -webkit-tap-highlight-color: transparent;
 }
 
