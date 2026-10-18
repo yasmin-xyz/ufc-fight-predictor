@@ -1289,6 +1289,38 @@ body {
 .fighter-rank-champ {
   color: #E8C468;
 }
+/* Collapsed pre-fight prediction on a finished fight: the card's title row IS
+   the toggle. Italic, sentence-case on purpose — every other card title is
+   uppercase and accent-colored, so this reads as an interactive prompt rather
+   than another section title. */
+.card-header:has(> .prefight-toggle) { padding: 0; }
+.card-header:has(> .prefight-toggle[aria-expanded="false"]) { border-bottom: 0; }
+.prefight-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  font: inherit;
+  font-size: 13px;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+  color: rgba(255, 255, 255, 0.62);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.prefight-toggle:hover { color: #E8E8EC; }
+.prefight-toggle:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: -2px; border-radius: 10px; }
+.prefight-chevron { flex: none; transition: transform 0.2s ease; }
+.prefight-chevron-open { transform: rotate(180deg); }
+.prefight-note { margin-bottom: 14px; font-size: 11px; font-style: italic; color: rgba(255, 255, 255, 0.4); }
+
 /* FINISHED FIGHT — result card + winner marks */
 .final-pill {
   font-size: 10px;
