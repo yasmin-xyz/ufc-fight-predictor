@@ -13,6 +13,23 @@ export type UfcEventFight = {
   fighterBId: string | undefined;
   fighterAFlag: string | undefined;
   fighterBFlag: string | undefined;
+  // True once THIS fight is over — per fight, not per event, so a result
+  // shows up as soon as its bout ends even while the card is still running.
+  completed: boolean;
+  // Display name of the winner, exactly as ESPN spells it for the fight
+  // (matches fighterA/fighterB). Undefined for a draw/no contest, or until
+  // the fight is over.
+  winner: string | undefined;
+  // How it ended. Only present once the fight is over; each part is
+  // independently optional since ESPN's method lookup is a separate request.
+  result: UfcFightResult | undefined;
+};
+
+export type UfcFightResult = {
+  // e.g. "KO/TKO (Knee)", "Submission (Rear Naked Choke)", "Decision (Unanimous)"
+  method: string | undefined;
+  round: number | undefined;
+  time: string | undefined;
 };
 
 export type UfcEventNext = {
@@ -86,6 +103,36 @@ function findNextEvent(calendar: any[] | undefined, currentEventName: string): U
   return { name: next.label, date: next.startDate };
 }
 
+const ESPN_RESULT_TIMEOUT_MS = 6_000;
+
+// The scoreboard says WHO won and in which round/time, but not HOW — the
+// method lives on a separate per-fight status resource on ESPN's core API.
+// Best-effort: a failure just leaves the method off the result card.
+async function fetchFightMethod(eventId: string, competitionId: string): Promise<string | undefined> {
+  try {
+    const res = await fetch(
+      `https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc/events/${eventId}/competitions/${competitionId}/status?lang=en&region=us`,
+      { cache: "no-store", signal: AbortSignal.timeout(ESPN_RESULT_TIMEOUT_MS) }
+    );
+    if (!res.ok) return undefined;
+
+    const result = (await res.json())?.result;
+    const name: string | undefined = result?.displayName || result?.shortDisplayName;
+    if (!name) return undefined;
+
+    // ESPN writes decisions as "Decision - Unanimous"; match the
+    // "Decision (Unanimous)" style used in the fight history instead.
+    const decision = name.match(/^Decision\s*[-–]\s*(.+)$/i);
+    if (decision) return `Decision (${decision[1].trim()})`;
+
+    // Finishes carry the technique separately ("Submission" + "Kimura").
+    const detail: string | undefined = result?.description || result?.displayDescription;
+    return detail ? `${name} (${detail})` : name;
+  } catch {
+    return undefined;
+  }
+}
+
 // Shared by the public /api/ufc-event route and the admin fighter-sync
 // endpoint, so both read the exact same ESPN parsing logic.
 async function fetchCurrentUfcEventUncached(): Promise<UfcEvent | null> {
@@ -123,8 +170,13 @@ async function fetchCurrentUfcEventUncached(): Promise<UfcEvent | null> {
 
   if (!event) return null;
 
-  const fights: UfcEventFight[] = (event.competitions || []).map((competition: any) => {
+  const fights: UfcEventFight[] = await Promise.all((event.competitions || []).map(async (competition: any) => {
     const competitors = competition.competitors || [];
+    const completed = competition.status?.type?.completed === true;
+    const winner: string | undefined = completed
+      ? competitors.find((c: any) => c?.winner === true)?.athlete?.displayName
+      : undefined;
+    const method = completed ? await fetchFightMethod(String(event.id), String(competition.id)) : undefined;
 
     return {
       id: competition.id,
@@ -143,8 +195,18 @@ async function fetchCurrentUfcEventUncached(): Promise<UfcEvent | null> {
 
       fighterAFlag: competitors[0]?.flag?.href,
       fighterBFlag: competitors[1]?.flag?.href,
+
+      completed,
+      winner,
+      result: completed
+        ? {
+            method,
+            round: typeof competition.status?.period === "number" && competition.status.period > 0 ? competition.status.period : undefined,
+            time: competition.status?.displayClock && competition.status.displayClock !== "-" ? competition.status.displayClock : undefined,
+          }
+        : undefined,
     };
-  });
+  }));
 
   const completed = event.status?.type?.completed === true;
   const isLive = event.status?.type?.state === "in";

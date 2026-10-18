@@ -528,6 +528,10 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
         // of trusting the client's bundling.
         fighterAMetricsSource: fight.fighterA,
         fighterBMetricsSource: fight.fighterB,
+
+        // A finished fight only ever shows the prediction made before it —
+        // never generate a new one (see /api/predict).
+        ...(fight.completed ? { cachedOnly: true } : {}),
       });
 
       const attempt = async () => {
@@ -536,6 +540,10 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
           headers: { "Content-Type": "application/json" },
           body,
         });
+
+        // "No pre-fight prediction on file" for a finished fight is a normal
+        // outcome, not a failure — resolve to null and let the UI say so.
+        if (res.status === 404 && fight.completed) return null;
 
         if (!res.ok) {
           const errorBody = await res.json().catch(() => null);
@@ -576,6 +584,11 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
       if (requestId !== requestIdRef.current) {
         return;
       }
+
+      // Finished fight with nothing on file: leave the section empty so it
+      // shows the "no pre-fight prediction" note. loadingPrediction is
+      // cleared by the finally below.
+      if (data === null) return;
 
       setPrediction(data);
       posthog.capture("prediction_loaded", {
@@ -967,7 +980,9 @@ selectFight(defaultFight);
       } else {
         // Settled (synced or gave up after the poll window) — this is the
         // best data we're going to get, so generate the AI prediction now.
-        loadPredictionData(
+        // (A finished fight already looked up its stored prediction at
+        // selection time — it doesn't depend on this data.)
+        if (!fight.completed) loadPredictionData(
           fight,
           data.metrics?.[fight.fighterA] || {},
           data.metrics?.[fight.fighterB] || {},
@@ -999,7 +1014,7 @@ selectFight(defaultFight);
         setFighterBHistoryState("");
         setHistoryStatus("error");
 
-        loadPredictionData(fight, {}, {}, [], []);
+        if (!fight.completed) loadPredictionData(fight, {}, {}, [], []);
         return;
       }
 
@@ -1069,6 +1084,13 @@ selectFight(defaultFight);
       fightId: selectedFight.id,
       promise: fetchStatsForPrediction(selectedFight),
     };
+
+    // A finished fight only looks up its stored pre-fight prediction, which
+    // doesn't depend on the metrics/history poll — don't make the visitor
+    // wait out a poll (up to 30s for fighters not yet synced) for nothing.
+    if (selectedFight.completed) {
+      loadPredictionData(selectedFight, {}, {}, [], []);
+    }
 
     return () => {
       if (metricsPollTimerRef.current) {
@@ -1289,6 +1311,18 @@ const statRows = [
   },
 ];
 
+  // Per fight, not per event: a bout's result shows up as soon as it ends,
+  // even while the rest of the card is still going.
+  const isFinal = !!selectedFight?.completed;
+  const eventConcluded = !!ufcEvent?.completed;
+  const winnerIsA = isFinal && !!selectedFight?.winner && namesMatchExactly(selectedFight.winner, selectedFight.fighterA);
+  const winnerIsB = isFinal && !!selectedFight?.winner && namesMatchExactly(selectedFight.winner, selectedFight.fighterB);
+  const resultMeta = [
+    selectedFight?.result?.method,
+    selectedFight?.result?.round ? `Round ${selectedFight.result.round}` : null,
+    selectedFight?.result?.time,
+  ].filter(Boolean).join(" · ");
+
   const fighterARank = getFighterRank(selectedFight?.weightClass, selectedFight?.fighterA);
   const fighterBRank = getFighterRank(selectedFight?.weightClass, selectedFight?.fighterB);
   const showRankRow = !!(fighterARank || fighterBRank);
@@ -1441,7 +1475,7 @@ const statRows = [
 </div>
 
       <div className="hero">
-        <span className="hero-kicker reveal-hero-kicker">Live Fight Intelligence</span>
+        <span className="hero-kicker reveal-hero-kicker">{eventConcluded ? "Event Results" : "Live Fight Intelligence"}</span>
 
         <h1 className="hero-headline">
           <span className="hero-headline-line hero-headline-line-1">Before you place</span>
@@ -1479,7 +1513,7 @@ const statRows = [
     onClick={() => handleTabChange("main")}
   >
     MAIN CARD
-    <span className="tab-time">{mainCardStart}</span>
+    <span className="tab-time">{eventConcluded ? "Final" : mainCardStart}</span>
   </button>
 
   {showPrelimsTab && (
@@ -1489,7 +1523,7 @@ const statRows = [
       onClick={() => handleTabChange("prelims")}
     >
       PRELIMS
-      <span className="tab-time">{prelimsStart}</span>
+      <span className="tab-time">{eventConcluded ? "Final" : prelimsStart}</span>
     </button>
   )}
 
@@ -1500,7 +1534,7 @@ const statRows = [
       onClick={() => handleTabChange("early")}
     >
       EARLY PRELIMS
-      <span className="tab-time">{earlyPrelimsStart}</span>
+      <span className="tab-time">{eventConcluded ? "Final" : earlyPrelimsStart}</span>
     </button>
   )}
 </div>
@@ -1523,6 +1557,23 @@ const statRows = [
         {/* CENTER — Analysis */}
         <div className="center">
 
+          {/* Final result — only once this fight is over */}
+          {isFinal && (
+            <div className="card result-card">
+              <div className="card-header">
+                <div className="card-title-group">
+                  <h2 className="card-label">Final Result</h2>
+                </div>
+                <span className="final-pill">Final</span>
+              </div>
+              <div className="card-body">
+                <div className="result-eyebrow">{selectedFight?.winner ? "Winner" : "Result"}</div>
+                <div className="result-winner">{selectedFight?.winner || selectedFight?.result?.method || "No winner recorded"}</div>
+                {resultMeta && selectedFight?.winner && <div className="result-meta">{resultMeta}</div>}
+              </div>
+            </div>
+          )}
+
           {/* Tale of the Tape */}
           <div className="card">
             <div className="card-header">
@@ -1540,7 +1591,7 @@ const statRows = [
   {!fighterAStats ? (
     <div className="fighter-headshot skeleton-shimmer" aria-hidden="true" />
   ) : fighterAStats.headshot ? (
-    <img src={fighterAStats.headshot} alt={selectedFight?.fighterA} className="fighter-headshot" />
+    <img src={fighterAStats.headshot} alt={selectedFight?.fighterA} className={`fighter-headshot ${winnerIsA ? "fighter-headshot-winner" : ""}`} />
   ) : (
     <FighterHeadshotPlaceholder />
   )}
@@ -1572,6 +1623,7 @@ const statRows = [
                     )}
                     <span className="fighter-record">{fighterAStats?.record || selectedFight?.recordA || "—"}</span>
                   </div>
+                  {winnerIsA && <span className="fighter-winner-tag">Winner</span>}
                   {isUpcomingDebut(fighterAOctagonDebut, selectedFight?.date) && (
                     <InfoTooltip label="UFC Debut" width={200} trigger="UFC Debut" triggerClassName="fighter-debut-note">
                       This fighter is new to the UFC, so public data on them (stats, fight history) may be limited.
@@ -1585,7 +1637,7 @@ const statRows = [
   {!fighterBStats ? (
     <div className="fighter-headshot fighter-headshot-b skeleton-shimmer" aria-hidden="true" />
   ) : fighterBStats.headshot ? (
-    <img src={fighterBStats.headshot} alt={selectedFight?.fighterB} className="fighter-headshot fighter-headshot-b" />
+    <img src={fighterBStats.headshot} alt={selectedFight?.fighterB} className={`fighter-headshot fighter-headshot-b ${winnerIsB ? "fighter-headshot-winner" : ""}`} />
   ) : (
     <FighterHeadshotPlaceholder className="fighter-headshot-b" />
   )}
@@ -1617,6 +1669,7 @@ const statRows = [
                     )}
                     <span className="fighter-record">{fighterBStats?.record || selectedFight?.recordB || "—"}</span>
                   </div>
+                  {winnerIsB && <span className="fighter-winner-tag">Winner</span>}
                   {isUpcomingDebut(fighterBOctagonDebut, selectedFight?.date) && (
                     <InfoTooltip label="UFC Debut" width={200} trigger="UFC Debut" triggerClassName="fighter-debut-note">
                       This fighter is new to the UFC, so public data on them (stats, fight history) may be limited.
@@ -1775,9 +1828,11 @@ const statRows = [
 <div className="card" ref={predictionCardRef}>
   <div className="card-header">
     <div className="card-title-group">
-      <h2 className="card-label">AI Matchup Breakdown</h2>
-      <InfoTooltip label="AI Matchup Breakdown">
-        A detailed explanation of each model&apos;s reasoning, including stylistic matchups, statistical advantages, and potential paths to victory.
+      <h2 className="card-label">{isFinal ? "Pre-Fight Prediction" : "AI Matchup Breakdown"}</h2>
+      <InfoTooltip label={isFinal ? "Pre-Fight Prediction" : "AI Matchup Breakdown"}>
+        {isFinal
+          ? "The analysis the models produced before this fight. It is a record of what was predicted at the time and is not updated with the result."
+          : "A detailed explanation of each model\u2019s reasoning, including stylistic matchups, statistical advantages, and potential paths to victory."}
       </InfoTooltip>
     </div>
     <span className="ai-models-label">Claude · GPT-4 · Gemini</span>
@@ -1894,10 +1949,12 @@ const statRows = [
               </>
             )}
 
-            <div className="value-card prediction-lean">
-              <div className="cons-eyebrow">Betting Lean</div>
-              <div className="pred-name">{prediction.claude?.bettingLean || "—"}</div>
-            </div>
+            {!isFinal && (
+              <div className="value-card prediction-lean">
+                <div className="cons-eyebrow">Betting Lean</div>
+                <div className="pred-name">{prediction.claude?.bettingLean || "—"}</div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1929,13 +1986,28 @@ const statRows = [
         </div>
       </div>
     ) : (
-      <div className="ai-loading">Select a fight to generate analysis</div>
+      <div className="ai-loading">
+        {isFinal ? "No pre-fight prediction was generated for this matchup." : "Select a fight to generate analysis"}
+      </div>
     )}
   </div>
 </div>
 </div>
         {/* RIGHT — Odds */}
         <div className="right-col">
+          {isFinal ? (
+            <div className="card">
+              <div className="card-header">
+                <div className="card-title-group">
+                  <h2 className="card-label">Betting Market</h2>
+                </div>
+                <span className="final-pill">Closed</span>
+              </div>
+              <div className="card-body">
+                <div className="ai-loading">Betting is closed — this fight is final.</div>
+              </div>
+            </div>
+          ) : (
           <div className="card">
             <div className="card-header">
               <div className="card-title-group">
@@ -2006,13 +2078,15 @@ const statRows = [
               )}
             </div>
           </div>
+          )}
 
-          {/* Multi-Model Consensus */}
+          {/* Multi-Model Consensus — for a finished fight with no stored pre-fight prediction there is nothing to show */}
+{!(isFinal && !prediction) && (
 <div className="card">
   <div className="card-header">
     <div className="card-title-group">
-      <h2 className="card-label">Model Consensus</h2>
-      <InfoTooltip label="Model Consensus">
+      <h2 className="card-label">{isFinal ? "Pre-Fight Consensus" : "Model Consensus"}</h2>
+      <InfoTooltip label={isFinal ? "Pre-Fight Consensus" : "Model Consensus"}>
         Claude, GPT-4, and Gemini analyze the matchup independently. Their predictions are combined to show the overall consensus and level of agreement.
       </InfoTooltip>
     </div>
@@ -2091,8 +2165,10 @@ const statRows = [
     })()}
   </div>
 </div>
+)}
 
-          {/* Value Analysis */}
+          {/* Value Analysis — meaningless once betting has closed */}
+          {!isFinal && (
           <div className="card">
             <div className="card-header">
               <div className="card-title-group">
@@ -2194,6 +2270,7 @@ const statRows = [
 </div>
             </div>
           </div>
+          )}
 
           {/* Fight History */}
           <div className="card">
