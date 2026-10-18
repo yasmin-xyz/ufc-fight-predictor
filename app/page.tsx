@@ -1321,6 +1321,11 @@ const statRows = [
   const eventConcluded = !!ufcEvent?.completed;
   const winnerIsA = isFinal && !!selectedFight?.winner && namesMatchExactly(selectedFight.winner, selectedFight.fighterA);
   const winnerIsB = isFinal && !!selectedFight?.winner && namesMatchExactly(selectedFight.winner, selectedFight.fighterB);
+  // A finished fight's pre-fight prediction card only exists when there's a
+  // stored prediction to expand — with none, an empty card would just be noise.
+  // It stays mounted (hidden) rather than unmounted so the scroll-reveal hook
+  // keeps its element when a prediction arrives a moment after selection.
+  const showAiCard = !isFinal || !!prediction;
   const resultMeta = [
     selectedFight?.result?.method,
     selectedFight?.result?.round ? `Round ${selectedFight.result.round}` : null,
@@ -1829,24 +1834,44 @@ const statRows = [
           </div>
 
          {/* AI Fight Breakdown */}
-<div className="card" ref={predictionCardRef}>
+<div className="card" ref={predictionCardRef} style={showAiCard ? undefined : { display: "none" }}>
   <div className="card-header">
-    <div className="card-title-group">
-      <h2 className="card-label">{isFinal ? "Pre-Fight Prediction" : "AI Matchup Breakdown"}</h2>
-      <InfoTooltip label={isFinal ? "Pre-Fight Prediction" : "AI Matchup Breakdown"}>
-        {isFinal
-          ? "The analysis the models produced before this fight. It is a record of what was predicted at the time and is not updated with the result."
-          : "A detailed explanation of each model\u2019s reasoning, including stylistic matchups, statistical advantages, and potential paths to victory."}
-      </InfoTooltip>
-    </div>
-    <span className="ai-models-label">Claude · GPT-4 · Gemini</span>
+    {isFinal ? (
+      <button
+        type="button"
+        className="prefight-toggle"
+        aria-expanded={prefightOpen}
+        aria-controls="prefight-panel"
+        onClick={() => {
+          posthog.capture("prefight_prediction_toggled", {
+            fighter_a: selectedFight?.fighterA,
+            fighter_b: selectedFight?.fighterB,
+            expanded: !prefightOpen,
+          });
+          setPrefightOpen((open) => !open);
+        }}
+      >
+        <span>{prefightOpen ? "Hide prediction summary" : "Expand to see prediction summary"}</span>
+        <svg className={`prefight-chevron ${prefightOpen ? "prefight-chevron-open" : ""}`} width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+    ) : (
+      <>
+        <div className="card-title-group">
+          <h2 className="card-label">AI Matchup Breakdown</h2>
+          <InfoTooltip label="AI Matchup Breakdown">
+            A detailed explanation of each model&apos;s reasoning, including stylistic matchups, statistical advantages, and potential paths to victory.
+          </InfoTooltip>
+        </div>
+        <span className="ai-models-label">Claude · GPT-4 · Gemini</span>
+      </>
+    )}
   </div>
 
+  {(!isFinal || prefightOpen) && (
   <div className="card-body" aria-live="polite">
     {loadingPrediction ? (
-      isFinal ? (
-        <div className="ai-loading">Checking for a pre-fight prediction…</div>
-      ) : (
       <div className="skeleton-ai-breakdown">
         <div className="skeleton-ai-summary">
           <div className="skeleton-shimmer skeleton-ai-summary-label" />
@@ -1863,7 +1888,6 @@ const statRows = [
           </div>
         ))}
       </div>
-      )
     ) : predictionError ? (
       <div className="ai-loading ai-loading-error">
         Couldn't generate an AI breakdown for this matchup.
@@ -1880,30 +1904,10 @@ const statRows = [
         </div>
       </div>
     ) : prediction ? (
-      <>
-      {isFinal && (
-        <button
-          type="button"
-          className="prefight-toggle"
-          aria-expanded={prefightOpen}
-          aria-controls="prefight-panel"
-          onClick={() => {
-            posthog.capture("prefight_prediction_toggled", {
-              fighter_a: selectedFight?.fighterA,
-              fighter_b: selectedFight?.fighterB,
-              expanded: !prefightOpen,
-            });
-            setPrefightOpen((open) => !open);
-          }}
-        >
-          <span>{prefightOpen ? "Hide AI prediction summary" : "Expand to see AI prediction summary"}</span>
-          <svg className={`prefight-chevron ${prefightOpen ? "prefight-chevron-open" : ""}`} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-      )}
-      {(!isFinal || prefightOpen) && (
       <div className="ai-section" id="prefight-panel">
+        {isFinal && (
+          <div className="prefight-note">Made before the fight and not updated with the result · Claude · GPT-4 · Gemini</div>
+        )}
         <div
           className="ai-block prediction-summary"
           style={{
@@ -2016,14 +2020,11 @@ const statRows = [
           </div>
         </div>
       </div>
-      )}
-      </>
     ) : (
-      <div className="ai-loading">
-        {isFinal ? "No pre-fight prediction was generated for this matchup." : "Select a fight to generate analysis"}
-      </div>
+      <div className="ai-loading">Select a fight to generate analysis</div>
     )}
   </div>
+  )}
 </div>
 </div>
         {/* RIGHT — Odds */}
