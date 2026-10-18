@@ -40,6 +40,20 @@ vi.mock("@anthropic-ai/sdk", () => ({
   },
 }));
 
+// The route builds its Anthropic client through PostHog's wrapper and creates a
+// server-side PostHog client at module load (which throws without a project
+// token). Mock both so this suite stays offline and token-free — without
+// these the whole file failed to load and covered nothing.
+vi.mock("@posthog/ai/anthropic", () => ({
+  Anthropic: class {
+    messages = { create: (...args: any[]) => anthropicState.impl(...args) };
+  },
+}));
+
+vi.mock("../app/lib/posthog-server", () => ({
+  getPostHogClient: () => ({ capture: () => {}, flush: async () => {} }),
+}));
+
 vi.mock("openai", () => ({
   default: class {
     responses = { create: (...args: any[]) => openaiState.impl(...args) };
@@ -164,6 +178,85 @@ describe("POST /api/predict — caching", () => {
     expect(anthropicSpy).not.toHaveBeenCalled();
     expect(openaiSpy).not.toHaveBeenCalled();
     expect(googleSpy).not.toHaveBeenCalled();
+  });
+});
+
+// A fight that's already over only ever shows the prediction made BEFORE it.
+describe("POST /api/predict — cachedOnly (finished fights)", () => {
+  const completeCached = {
+    claude: { predictedWinner: "Fighter One", confidence: 70 },
+    gpt: { predictedWinner: "Fighter One", confidence: 65 },
+    gemini: { predictedWinner: "Fighter One", confidence: 80 },
+    consensus: { winner: "Fighter One", confidence: 72, agreeingModels: ["claude", "gpt", "gemini"], totalSuccessfulModels: 3, modelAgreement: "Unanimous" },
+  };
+
+  function spyOnProviders() {
+    return [
+      vi.spyOn(anthropicState, "impl"),
+      vi.spyOn(openaiState, "impl"),
+      vi.spyOn(googleState, "impl"),
+    ];
+  }
+
+  test("returns the stored pre-fight prediction when one exists", async () => {
+    supabaseState.cachedPrediction = { prediction: completeCached };
+    const spies = spyOnProviders();
+
+    const res = await routeModule.POST(postRequest({ ...VALID_BODY, cachedOnly: true }));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(completeCached);
+    spies.forEach((spy) => expect(spy).not.toHaveBeenCalled());
+  });
+
+  test("a miss is a 404 and never generates a prediction", async () => {
+    supabaseState.cachedPrediction = null;
+    const spies = spyOnProviders();
+
+    const res = await routeModule.POST(postRequest({ ...VALID_BODY, cachedOnly: true }));
+
+    expect(res.status).toBe(404);
+    expect((await res.json()).code).toBe("no_cached_prediction");
+    spies.forEach((spy) => expect(spy).not.toHaveBeenCalled());
+  });
+
+  test("an incomplete stored prediction is NOT regenerated", async () => {
+    // Without cachedOnly a missing model result triggers regeneration; for a
+    // finished fight that would be a post-result prediction, so it's a miss.
+    supabaseState.cachedPrediction = { prediction: { ...completeCached, gemini: null } };
+    const spies = spyOnProviders();
+
+    const res = await routeModule.POST(postRequest({ ...VALID_BODY, cachedOnly: true }));
+
+    expect(res.status).toBe(404);
+    spies.forEach((spy) => expect(spy).not.toHaveBeenCalled());
+  });
+
+  test("a miss never touches the rate limiter", async () => {
+    let rpcCalls = 0;
+    supabaseState.rpcImpl = async () => {
+      rpcCalls++;
+      return { data: [{ allowed: true, current_count: 1, retry_after_seconds: 0 }], error: null };
+    };
+
+    await routeModule.POST(postRequest({ ...VALID_BODY, cachedOnly: true }));
+
+    expect(rpcCalls).toBe(0);
+  });
+
+  test("rejects a non-boolean cachedOnly", async () => {
+    const res = await routeModule.POST(postRequest({ ...VALID_BODY, cachedOnly: "yes" }));
+    expect(res.status).toBe(400);
+  });
+
+  test("without cachedOnly an uncached fight still generates as before", async () => {
+    supabaseState.cachedPrediction = null;
+    const spies = spyOnProviders();
+
+    const res = await routeModule.POST(postRequest(VALID_BODY));
+
+    expect(res.status).toBe(200);
+    spies.forEach((spy) => expect(spy).toHaveBeenCalledTimes(1));
   });
 });
 

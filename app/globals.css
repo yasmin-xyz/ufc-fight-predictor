@@ -1289,6 +1289,36 @@ body {
 .fighter-rank-champ {
   color: #E8C468;
 }
+/* FINISHED FIGHT — result card + winner marks */
+.final-pill {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.05);
+  border: 0.5px solid rgba(255, 255, 255, 0.14);
+  padding: 4px 11px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.result-card { border-color: rgba(98, 55, 176, 0.3); background: linear-gradient(135deg, rgba(98, 55, 176, 0.1), #16161A 70%); }
+.result-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-muted); }
+.result-winner { margin-top: 6px; font-size: 26px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; color: #E8E8EC; text-wrap: balance; }
+.result-meta { margin-top: 8px; font-size: 13px; color: rgba(255, 255, 255, 0.6); font-variant-numeric: tabular-nums; }
+.fighter-winner-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-muted);
+  background: rgba(98, 55, 176, 0.12);
+  border: 0.5px solid rgba(98, 55, 176, 0.3);
+  border-radius: 20px;
+  padding: 3px 9px;
+  margin-top: 7px;
+}
 .vs-col { display: flex; flex-direction: column; align-items: center; padding-top: 8px; }
 .vs-text { font-size: 11px; color: rgba(255,255,255,0.18); text-transform: uppercase; letter-spacing: 0.12em; }
 .weight-pill { font-size: 10px; color: var(--accent-muted); background: rgba(98, 55, 176, 0.1); border: 0.5px solid rgba(98, 55, 176, 0.2); padding: 4px 11px; border-radius: 20px; white-space: nowrap; }
@@ -1678,6 +1708,12 @@ body {
 
 .fighter-headshot-b {
   margin-left: auto;
+}
+
+/* Winner of a finished fight — a quiet accent ring, not a trophy. */
+.fighter-headshot-winner {
+  border-color: var(--accent-muted);
+  box-shadow: 0 0 0 2px rgba(123, 118, 229, 0.35);
 }
 
 .fighter-headshot-placeholder {

@@ -94,6 +94,7 @@ const TOP_LEVEL_FIELDS = [
   "fighterBMetrics",
   "fighterAHistory",
   "fighterBHistory",
+  "cachedOnly",
 ];
 
 function validateStatsObject(value: unknown, label: string): Record<string, unknown> | undefined {
@@ -158,6 +159,13 @@ function validatePredictBody(raw: unknown) {
   const fighterBMetricsSource = assertRequiredString(body.fighterBMetricsSource, "fighterBMetricsSource", 150);
   const eventName = validateOptionalString(body.eventName, "eventName", 200);
 
+  // For a fight that's already over: return a stored pre-fight prediction if
+  // there is one, and never generate a new one (see the cache check below).
+  if (body.cachedOnly !== undefined && typeof body.cachedOnly !== "boolean") {
+    throw new ValidationError("cachedOnly must be a boolean");
+  }
+  const cachedOnly = body.cachedOnly === true;
+
   const fighterAStats = validateStatsObject(body.fighterAStats, "fighterAStats");
   const fighterBStats = validateStatsObject(body.fighterBStats, "fighterBStats");
   const fighterAMetrics = validateMetricsObject(body.fighterAMetrics, "fighterAMetrics");
@@ -173,6 +181,7 @@ function validatePredictBody(raw: unknown) {
     eventName,
     fighterAHistory,
     fighterBHistory,
+    cachedOnly,
     fighterAMetricsSource,
     fighterBMetricsSource,
     fighterAStats,
@@ -486,7 +495,7 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    const { fighterA, fighterB, oddsA, oddsB, eventName } = body;
+    const { fighterA, fighterB, oddsA, oddsB, eventName, cachedOnly } = body;
 
     const validationErrors = validateFighterData(body);
 
@@ -522,9 +531,21 @@ export async function POST(request: Request) {
         return NextResponse.json(cached);
       }
 
-      console.warn(
-        `Cached prediction for "${fightKey}" is missing a model result — regenerating instead of returning it`
-      );
+      if (!cachedOnly) {
+        console.warn(
+          `Cached prediction for "${fightKey}" is missing a model result — regenerating instead of returning it`
+        );
+      }
+    }
+
+    // A fight that's already over only ever shows the prediction made BEFORE
+    // it. Generating one now would be dishonest — by then the fighters' data
+    // (history, records) can already include this very result, so the models
+    // would be "predicting" a known outcome — and it would spend three paid
+    // provider calls on a fight nobody can bet on. A miss isn't an error;
+    // the caller shows "no pre-fight prediction" instead.
+    if (cachedOnly) {
+      return NextResponse.json({ error: "No pre-fight prediction on file", code: "no_cached_prediction" }, { status: 404 });
     }
 
     // Only cache misses reach the rate limiter — a cache hit never
