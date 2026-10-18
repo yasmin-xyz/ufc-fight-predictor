@@ -1906,7 +1906,7 @@ const statRows = [
     ) : prediction ? (
       <div className="ai-section" id="prefight-panel">
         {isFinal && (
-          <div className="prefight-note">Made before the fight and not updated with the result · Claude · GPT-4 · Gemini</div>
+          <div className="prefight-note">AI predictions made by Claude, GPT-4, and Gemini before the fight</div>
         )}
         <div
           className="ai-block prediction-summary"
