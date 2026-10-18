@@ -1289,6 +1289,31 @@ body {
 .fighter-rank-champ {
   color: #E8C468;
 }
+/* Collapsed pre-fight prediction toggle on a finished fight */
+.prefight-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 16px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-muted);
+  background: rgba(98, 55, 176, 0.08);
+  border: 0.5px solid rgba(98, 55, 176, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+}
+.prefight-toggle:hover { background: rgba(98, 55, 176, 0.14); border-color: rgba(98, 55, 176, 0.45); }
+.prefight-toggle:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+.prefight-chevron { flex: none; transition: transform 0.2s ease; }
+.prefight-chevron-open { transform: rotate(180deg); }
+.prefight-toggle + .ai-section { margin-top: 16px; }
+
 /* FINISHED FIGHT — result card + winner marks */
 .final-pill {
   font-size: 10px;

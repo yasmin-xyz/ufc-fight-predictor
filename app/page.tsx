@@ -423,6 +423,9 @@ const [mergedFights, setMergedFights] = useState<any[]>([]);
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
   const [predictionError, setPredictionError] = useState(false);
+  // A finished fight's pre-fight prediction starts collapsed — the result is
+  // the headline, the old forecast is opt-in.
+  const [prefightOpen, setPrefightOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("main");
 
   const [fighterAMetrics, setFighterAMetrics] = useState<any>({});
@@ -1062,6 +1065,7 @@ selectFight(defaultFight);
     setPrediction(null);
     setPredictionError(false);
     setLoadingPrediction(true);
+    setPrefightOpen(false);
     requestIdRef.current++;
 
     // Same reasoning for Cito's style/stance labels: they arrive with the
@@ -1840,6 +1844,9 @@ const statRows = [
 
   <div className="card-body" aria-live="polite">
     {loadingPrediction ? (
+      isFinal ? (
+        <div className="ai-loading">Checking for a pre-fight prediction…</div>
+      ) : (
       <div className="skeleton-ai-breakdown">
         <div className="skeleton-ai-summary">
           <div className="skeleton-shimmer skeleton-ai-summary-label" />
@@ -1856,6 +1863,7 @@ const statRows = [
           </div>
         ))}
       </div>
+      )
     ) : predictionError ? (
       <div className="ai-loading ai-loading-error">
         Couldn't generate an AI breakdown for this matchup.
@@ -1872,7 +1880,30 @@ const statRows = [
         </div>
       </div>
     ) : prediction ? (
-      <div className="ai-section">
+      <>
+      {isFinal && (
+        <button
+          type="button"
+          className="prefight-toggle"
+          aria-expanded={prefightOpen}
+          aria-controls="prefight-panel"
+          onClick={() => {
+            posthog.capture("prefight_prediction_toggled", {
+              fighter_a: selectedFight?.fighterA,
+              fighter_b: selectedFight?.fighterB,
+              expanded: !prefightOpen,
+            });
+            setPrefightOpen((open) => !open);
+          }}
+        >
+          <span>{prefightOpen ? "Hide AI prediction summary" : "Expand to see AI prediction summary"}</span>
+          <svg className={`prefight-chevron ${prefightOpen ? "prefight-chevron-open" : ""}`} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
+      {(!isFinal || prefightOpen) && (
+      <div className="ai-section" id="prefight-panel">
         <div
           className="ai-block prediction-summary"
           style={{
@@ -1985,6 +2016,8 @@ const statRows = [
           </div>
         </div>
       </div>
+      )}
+      </>
     ) : (
       <div className="ai-loading">
         {isFinal ? "No pre-fight prediction was generated for this matchup." : "Select a fight to generate analysis"}
@@ -2080,8 +2113,8 @@ const statRows = [
           </div>
           )}
 
-          {/* Multi-Model Consensus — for a finished fight with no stored pre-fight prediction there is nothing to show */}
-{!(isFinal && !prediction) && (
+          {/* Multi-Model Consensus — for a finished fight it's part of the collapsed pre-fight prediction, so it only shows once that's expanded */}
+{!(isFinal && (!prediction || !prefightOpen)) && (
 <div className="card">
   <div className="card-header">
     <div className="card-title-group">
